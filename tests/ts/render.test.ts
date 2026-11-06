@@ -3,7 +3,6 @@ import { loadAssets, renderHtml, type RenderAssets } from '../../renderer/templa
 import { demoData, liveData, recalculate, shortData } from './fixtures.js';
 import { smoothPath, weeklyPoints } from '../../renderer/transform.js';
 
-const LOCK_PATH = 'M15 19v-7a7 7 0 0 1 14 0v7';
 let assets: RenderAssets;
 beforeAll(async () => { assets = await loadAssets(); });
 
@@ -22,8 +21,6 @@ describe('HTML composition', () => {
     expect(html).toContain('data:image/svg+xml;base64,');
     expect(html).toContain('data:font/ttf;base64,');
     expect(html).toContain('DEMO / SIMULATED DATA');
-    expect(html).toContain('public activity only');
-    expect(html).not.toContain('private counts anonymized');
   });
 
   it('distinguishes unavailable metrics from zero and handles empty languages', () => {
@@ -79,10 +76,28 @@ describe('HTML composition', () => {
     expect(html).not.toContain('class="tagline"');
   });
 
-  it('renders one subtitle per privateContributions state', () => {
-    expect(renderHtml(liveData({ privateContributions: 'included' }), assets)).toContain('private counts anonymized');
-    expect(renderHtml(liveData({ privateContributions: 'excluded' }), assets)).toContain('public activity only');
-    expect(renderHtml(liveData({ privateContributions: 'unknown' }), assets)).toContain('visible activity only');
+  const privacyText = (html: string): string => /<div class="privacy"[^>]*>(.*?)<\/div>/s.exec(html)![1]!.replace(/<[^>]+>/g, '').trim();
+  const OLD_PHRASES = ['private counts anonymized', 'public activity only', 'visible activity only'];
+
+  it('shows only the compact period in the subtitle in demo and live', () => {
+    for (const html of [renderHtml(demoData(), assets), renderHtml(liveData(), assets)]) {
+      expect(privacyText(html)).toBe('Nov 2025 – Oct 2026');
+      for (const phrase of OLD_PHRASES) {
+        expect(html).not.toContain(phrase);
+      }
+    }
+  });
+
+  it('states the privacy situation in the screen-reader paragraph per state', () => {
+    const sentences = {
+      included: 'Totals include private activity as anonymized counts.',
+      excluded: 'Totals cover public activity only.',
+      unknown: 'Totals cover activity visible to the token.',
+    } as const;
+    for (const [state, sentence] of Object.entries(sentences)) {
+      const html = renderHtml(liveData({ privateContributions: state as keyof typeof sentences }), assets);
+      expect(/<p class="sr-only">(.*?)<\/p>/s.exec(html)![1]).toContain(sentence);
+    }
   });
 
   it('removes card secondary descriptions and keeps Not available for null', () => {
@@ -109,7 +124,5 @@ describe('HTML composition', () => {
     expect(html).toContain('No contributions in this period');
     expect(html).toContain('No eligible public<br/>repositories.</p>');
     expect(html).toContain(`Live GitHub statistics for ${data.profile.username}, generated ${data.generatedAt}. 0 contributions; 0 active days.`);
-    expect(html).not.toContain(LOCK_PATH);
-    expect(renderHtml(liveData(), assets)).toContain(LOCK_PATH);
   });
 });

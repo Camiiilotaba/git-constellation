@@ -29,7 +29,11 @@ export async function loadAssets(): Promise<RenderAssets> {
 }
 
 const number = (value: number): string => new Intl.NumberFormat('en-US').format(value);
-const PRIVACY_NOTE = { included: 'private counts anonymized', excluded: 'public activity only', unknown: 'visible activity only' } as const;
+const PRIVACY_SENTENCE = {
+  included: 'Totals include private activity as anonymized counts.',
+  excluded: 'Totals cover public activity only.',
+  unknown: 'Totals cover activity visible to the token.',
+} as const;
 const TOKEN_VISIBLE_NOTE = 'Visible to the token; may exclude private activity';
 const coordinate = (value: number): string => value.toFixed(2);
 
@@ -86,7 +90,6 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const formatMonth = (value: string): string => new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
   const compactPeriod = formatMonth(data.period.start) === formatMonth(data.period.end) ? formatMonth(data.period.start) : `${formatMonth(data.period.start)} – ${formatMonth(data.period.end)}`;
   const demo = data.mode === 'demo';
-  const privacyNote = demo ? PRIVACY_NOTE.excluded : PRIVACY_NOTE[data.privateContributions];
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
   const languages = [...data.languages].sort((a, b) => b.repositories - a.repositories || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return `<!doctype html>
@@ -103,7 +106,7 @@ ${assets.stylesheet}
 <div class="orbit" aria-hidden="true"><svg viewBox="0 0 157 141"><defs><linearGradient id="orbitGradient"><stop stop-color="#1c7a7f" stop-opacity=".1"/><stop offset=".45" stop-color="${data.theme.green}"/><stop offset="1" stop-color="${data.theme.cyan}"/></linearGradient><filter id="orbitGlow"><feGaussianBlur stdDeviation="4"/></filter></defs><path d="M11 110C-9 136 30 143 82 120S153 53 145 30 104-7 72 13" fill="none" stroke="url(#orbitGradient)" stroke-width="1.4"/><path d="M11 110C-9 136 30 143 82 120S153 53 145 30 104-7 72 13" fill="none" stroke="url(#orbitGradient)" stroke-width="4" opacity=".4" filter="url(#orbitGlow)"/><path d="M28 71C43 31 58 11 85 10" fill="none" stroke="#137b85" stroke-width=".6" opacity=".5"/><circle cx="114" cy="13" r="2.5" fill="#bcffff"/><circle cx="84" cy="119" r="2.5" fill="${data.theme.green}"/></svg>${icon('code')}</div>
 <header class="identity"><h1 data-fit data-min-size="38" title="${escapeText(profile.name)}">${escapeText(profile.name)}</h1><div class="subtitle" data-fit data-min-size="20" title="${escapeText(`${profile.role} · ${profile.stack}`)}"><span class="role">${escapeText(profile.role)}</span> · ${escapeText(profile.stack)}</div></header>
 <div class="brand"><div class="brand-title">DEVELOPER CONSTELLATION</div>${demo ? '<div class="demo">DEMO / SIMULATED DATA</div>' : ''}</div>
-<section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-mark">${icon('contribution')}</div><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon(!demo && data.privateContributions === 'included' ? 'lock' : 'calendar')}<span>${compactPeriod} <em>· ${privacyNote}</em></span></div></div></section>
+<section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-mark">${icon('contribution')}</div><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon('calendar')}<span>${compactPeriod}</span></div></div></section>
 ${constellation(data)}
 <aside class="languages" aria-label="Languages ranked by public repository count"><h2>${icon('code')}Top Languages</h2>
 ${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(language.name)}: ${language.repositories} public repositories"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol><p class="language-criterion">By public repository count</p>` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>
@@ -115,6 +118,6 @@ ${metric('Longest Streak', metrics.longestStreak, 'flame')}
 </div>
 <p class="sr-only">${demo
   ? `This is a demonstration with simulated data, not live GitHub statistics. Username: ${escapeText(profile.username)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. Language ranking counts eligible public repositories, including secondary languages.`
-  : `Live GitHub statistics for ${escapeText(profile.username)}, generated ${escapeText(data.generatedAt)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. Pull requests and code reviews count activity visible to the token and may exclude private activity. Language ranking counts eligible public repositories, including secondary languages.`}</p>
+  : `Live GitHub statistics for ${escapeText(profile.username)}, generated ${escapeText(data.generatedAt)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. ${PRIVACY_SENTENCE[data.privateContributions]} Pull requests and code reviews count activity visible to the token and may exclude private activity. Language ranking counts eligible public repositories, including secondary languages.`}</p>
 </main></body></html>`;
 }

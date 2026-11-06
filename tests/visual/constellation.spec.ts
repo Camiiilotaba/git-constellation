@@ -31,7 +31,7 @@ test('live mode renders without the demo badge', async ({ page }) => {
   await expect(page.locator('main')).toHaveScreenshot('live.png');
   await expect(page.locator('.demo')).toHaveCount(0);
   await expect(page.locator('.tagline')).toHaveCount(0);
-  await expect(page.locator('.privacy')).toContainText('private counts anonymized');
+  await expect(page.locator('.privacy')).toHaveText('Nov 2025 – Oct 2026');
   await assertNoMetricOverflow(page);
 });
 
@@ -43,7 +43,7 @@ test('demo matches the panoramic screenshot baseline entirely offline', async ({
   await render(page, demoData());
   await expect(page.locator('main')).toHaveScreenshot('demo.png');
   await expect(page.locator('.demo')).toHaveText('DEMO / SIMULATED DATA');
-  await expect(page.locator('.privacy')).toContainText('Nov 2025 – Oct 2026');
+  await expect(page.locator('.privacy')).toHaveText('Nov 2025 – Oct 2026');
   await expect(page.locator('.weekly-star')).toHaveCount(53);
   await expect(page.locator('.decorative-mesh')).toHaveAttribute('aria-hidden', 'true');
   await expect(page.locator('.decorative-branch')).toHaveCount(3);
