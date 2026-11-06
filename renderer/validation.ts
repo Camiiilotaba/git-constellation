@@ -54,7 +54,7 @@ function validateSource(input: unknown): void {
   }
 }
 
-/** Validate the rendering rendering boundary, including calendar continuity. */
+/** Validate the rendering boundary, including calendar continuity. */
 export function validateData(input: unknown): ConstellationData {
   const root = object(input, 'data');
   if (root.schemaVersion !== 2) throw new Error('Unsupported schemaVersion; expected 2.');

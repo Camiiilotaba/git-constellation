@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets, renderHtml, type RenderAssets } from '../../renderer/template.js';
-import { demoData, shortData } from './fixtures.js';
+import { demoData, liveData, recalculate, shortData } from './fixtures.js';
 import { smoothPath, weeklyPoints } from '../../renderer/transform.js';
 
+const LOCK_PATH = 'M15 19v-7a7 7 0 0 1 14 0v7';
 let assets: RenderAssets;
 beforeAll(async () => { assets = await loadAssets(); });
 
@@ -63,5 +64,52 @@ describe('HTML composition', () => {
     expect(html.match(/class="data-star"/g)).toHaveLength(points.length);
     expect(html).toContain('Normalized square-root scale');
     expect(html).toContain('Faint dashed branches are decorative.');
+  });
+
+  it('omits the demo badge and the tagline in live mode', () => {
+    const html = renderHtml(liveData(), assets);
+    expect(html).not.toContain('DEMO / SIMULATED DATA');
+    expect(html).not.toContain('ACTIVITY <b>•</b> CODE');
+    expect(html).toContain('· Git Constellation</title>');
+  });
+
+  it('keeps the demo badge in demo mode but drops the tagline', () => {
+    const html = renderHtml(demoData(), assets);
+    expect(html).toContain('DEMO / SIMULATED DATA');
+    expect(html).not.toContain('class="tagline"');
+  });
+
+  it('renders one subtitle per privateContributions state', () => {
+    expect(renderHtml(liveData({ privateContributions: 'included' }), assets)).toContain('private counts anonymized');
+    expect(renderHtml(liveData({ privateContributions: 'excluded' }), assets)).toContain('public activity only');
+    expect(renderHtml(liveData({ privateContributions: 'unknown' }), assets)).toContain('visible activity only');
+  });
+
+  it('removes card secondary descriptions and keeps Not available for null', () => {
+    const html = renderHtml(demoData(), assets);
+    for (const text of ['Created · simulated', 'Submitted · simulated', 'In the example period', 'Consecutive active days']) {
+      expect(html).not.toContain(text);
+    }
+    const nulls = renderHtml(liveData({ metrics: { ...liveData().metrics, pullRequests: null } }), assets);
+    expect(nulls).toContain('<small data-fit data-min-size="15">Not available</small>');
+  });
+
+  it('labels PR and review cards as token-visible in live mode', () => {
+    expect(renderHtml(liveData(), assets)).toContain('title="Visible to the token; may exclude private activity"');
+  });
+
+  it('uses live copy for labels, empty states and the screen-reader paragraph', () => {
+    const data = liveData({ languages: [], privateContributions: 'excluded' });
+    data.days.forEach(day => { day.count = 0; });
+    recalculate(data);
+    const html = renderHtml(data, assets);
+    expect(html).toContain('aria-label="GitHub contributions"');
+    expect(html).toContain('GitHub contribution constellation"');
+    expect(html).not.toContain('simulated');
+    expect(html).toContain('No contributions in this period');
+    expect(html).toContain('No eligible public<br/>repositories.</p>');
+    expect(html).toContain(`Live GitHub statistics for ${data.profile.username}, generated ${data.generatedAt}. 0 contributions; 0 active days.`);
+    expect(html).not.toContain(LOCK_PATH);
+    expect(renderHtml(liveData(), assets)).toContain(LOCK_PATH);
   });
 });

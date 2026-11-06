@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GitConstellation\Data;
 
-use GitConstellation\Config\Configuration;
 use DateTimeImmutable;
 use DateTimeZone;
+use GitConstellation\Config\Configuration;
 use GitConstellation\Statistics\ContributionMetrics;
 
 final class RendererData

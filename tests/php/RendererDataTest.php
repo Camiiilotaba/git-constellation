@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace GitConstellation\Tests;
 
+use DateTimeImmutable;
 use GitConstellation\Config\Configuration;
 use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\RendererData;
 use GitConstellation\Support\IntegerRange;
 use GitConstellation\Support\JsonFile;
-use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
