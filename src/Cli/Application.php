@@ -51,7 +51,7 @@ Usage:
 --live  Real GitHub statistics for the configured username over the trailing year.
         Copy config/live.example.json to config/local.json and edit it first.
         Needs GITHUB_TOKEN (environment or .env) with the read:user scope only.
-        Any failure exits 1 and writes nothing; there is no fallback to demo data.
+        Any fetch failure exits 1 and writes nothing; there is no fallback to demo data.
         Default image: dist/live.png (dist/constellation.png stays the demo image).
 
 Relative paths are resolved from the project directory. Absolute paths are supported.
