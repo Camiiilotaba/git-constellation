@@ -49,7 +49,7 @@ final readonly class Environment
             // parse() instead of load(): the token must stay out of the process environment
             // so child processes such as the Node renderer cannot inherit it.
             $values = (new Dotenv())->parse($contents, $path);
-        } catch (FormatException) {
+        } catch (FormatException|\LogicException) {
             throw new RuntimeException("Could not parse {$path}.");
         }
 

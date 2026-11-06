@@ -62,11 +62,10 @@ final class EnvironmentTest extends TestCase
     public function testDotEnvIsNeverExportedToProcess(): void
     {
         file_put_contents($this->root . '/.env', "GITHUB_TOKEN=ghp_secret\n");
+        $before = [getenv('GITHUB_TOKEN'), $_ENV['GITHUB_TOKEN'] ?? null, $_SERVER['GITHUB_TOKEN'] ?? null];
 
         Environment::load($this->root, []);
 
-        self::assertFalse(getenv('GITHUB_TOKEN'));
-        self::assertArrayNotHasKey('GITHUB_TOKEN', $_ENV);
-        self::assertArrayNotHasKey('GITHUB_TOKEN', $_SERVER);
+        self::assertSame($before, [getenv('GITHUB_TOKEN'), $_ENV['GITHUB_TOKEN'] ?? null, $_SERVER['GITHUB_TOKEN'] ?? null]);
     }
 }
