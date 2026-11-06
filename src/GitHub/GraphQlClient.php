@@ -58,10 +58,15 @@ final class GraphQlClient
 
         // Any error fails the run even when `data` is present: partial statistics would be silently wrong.
         if (isset($decoded['errors']) && is_array($decoded['errors']) && $decoded['errors'] !== []) {
+            $allNotFound = count(array_filter($decoded['errors'], static fn (mixed $error): bool => is_array($error) && ($error['type'] ?? null) === 'NOT_FOUND')) === count($decoded['errors']);
             $messages = array_map(
                 static fn (mixed $error): string => is_array($error) && is_string($error['message'] ?? null) ? $error['message'] : '(no message)',
                 $decoded['errors'],
             );
+            // GitHub reports an unknown user as data.user = null plus a NOT_FOUND error, so this is where NotFound arises.
+            if ($allNotFound) {
+                throw new GitHubApiException(GitHubErrorKind::NotFound, implode('; ', $messages));
+            }
             throw new GitHubApiException(GitHubErrorKind::Response, 'GitHub GraphQL errors: ' . implode('; ', $messages));
         }
 

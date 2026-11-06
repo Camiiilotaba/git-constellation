@@ -62,10 +62,10 @@ GRAPHQL;
         $calendarData = $this->object($collection, 'contributionCalendar', 'contributionsCollection.contributionCalendar');
         $calendarTotal = $this->integer($calendarData, 'totalContributions', 'contributionCalendar.totalContributions');
         $returnedDays = $this->days($calendarData);
-        $this->assertCalendarTotal($calendarTotal, $returnedDays);
 
         // GitHub pads the calendar to whole weeks, so it returns days outside the requested period.
         $periodDays = array_values(array_filter($returnedDays, fn (array $day): bool => $period->contains($day['date'])));
+        $this->assertCalendarTotal($calendarTotal, $returnedDays, $periodDays);
         try {
             $calendar = ContributionCalendar::fromArray(['start' => $period->start, 'end' => $period->end], $periodDays);
         } catch (InvalidArgumentException $exception) {
@@ -96,14 +96,16 @@ GRAPHQL;
     }
 
     /**
-     * Never render numbers that GitHub's own total does not confirm. Provisional: assumes the total counts
-     * every returned day, padded ones included; change the sum here if a real response shows otherwise.
+     * Never render numbers that GitHub's own total does not confirm. Whether the total counts the padded
+     * days is unverified against the real API, so either sum is accepted.
      *
      * @param list<array{date: string, count: int}> $returnedDays
+     * @param list<array{date: string, count: int}> $periodDays
      */
-    private function assertCalendarTotal(int $calendarTotal, array $returnedDays): void
+    private function assertCalendarTotal(int $calendarTotal, array $returnedDays, array $periodDays): void
     {
-        if ($calendarTotal !== array_sum(array_column($returnedDays, 'count'))) {
+        if ($calendarTotal !== array_sum(array_column($returnedDays, 'count'))
+            && $calendarTotal !== array_sum(array_column($periodDays, 'count'))) {
             throw new GitHubApiException(GitHubErrorKind::Response, 'GitHub calendar total does not match its daily counts');
         }
     }

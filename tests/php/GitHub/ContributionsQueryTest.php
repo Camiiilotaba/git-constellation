@@ -108,7 +108,7 @@ final class ContributionsQueryTest extends TestCase
         $exception = $this->failure(fn () => $query->fetch('ghost', $this->period()));
 
         self::assertSame(GitHubErrorKind::NotFound, $exception->kind);
-        self::assertSame('GitHub user not found: ghost', $exception->getMessage());
+        self::assertStringContainsString('ghost', $exception->getMessage());
     }
 
     public function testLoginMismatchFails(): void
@@ -141,6 +141,26 @@ final class ContributionsQueryTest extends TestCase
 
         self::assertSame(GitHubErrorKind::Response, $exception->kind);
         self::assertStringContainsString('total', $exception->getMessage());
+    }
+
+    public function testCalendarTotalMatchingOnlyInPeriodDaysIsAccepted(): void
+    {
+        $data = json_decode($this->fixture('contributions-ok'), true);
+        $calendar = &$data['data']['user']['contributionsCollection']['contributionCalendar'];
+        $inPeriod = 0;
+        foreach ($calendar['weeks'] as $week) {
+            foreach ($week['contributionDays'] as $day) {
+                if ($this->period()->contains($day['date'])) {
+                    $inPeriod += $day['contributionCount'];
+                }
+            }
+        }
+        self::assertNotSame($calendar['totalContributions'], $inPeriod);
+        $calendar['totalContributions'] = $inPeriod;
+
+        $result = $this->query(json_encode($data))->fetch('octo-sample', $this->period());
+
+        self::assertSame($inPeriod, $result->calendarTotal);
     }
 
     public function testNoRestrictedCountsParse(): void

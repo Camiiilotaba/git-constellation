@@ -199,6 +199,25 @@ final class GraphQlClientTest extends TestCase
         self::assertStringContainsString('boom', $exception->getMessage());
     }
 
+    public function testNotFoundErrorsMapToNotFound(): void
+    {
+        $client = $this->client([$this->json('{"data":{"user":null},"errors":[{"type":"NOT_FOUND","message":"Could not resolve to a User with the login of \'ghost\'."}]}')]);
+
+        $exception = $this->failure(fn () => $client->query('q'));
+
+        self::assertSame(GitHubErrorKind::NotFound, $exception->kind);
+        self::assertStringContainsString('ghost', $exception->getMessage());
+    }
+
+    public function testMixedNotFoundAndOtherErrorsStayResponse(): void
+    {
+        $client = $this->client([$this->json('{"data":{"user":null},"errors":[{"type":"NOT_FOUND","message":"gone"},{"type":"FORBIDDEN","message":"nope"}]}')]);
+
+        $exception = $this->failure(fn () => $client->query('q'));
+
+        self::assertSame(GitHubErrorKind::Response, $exception->kind);
+    }
+
     public function testNonJsonBodyFails(): void
     {
         $client = $this->client([$this->json('<html>')]);

@@ -128,6 +128,38 @@ final class LiveStatisticsTest extends TestCase
         self::assertSame(0, $snapshot->repositoriesScanned);
     }
 
+    public function testPrivateStateUsesTheInPeriodTotalNotTheTotalWithPaddedDays(): void
+    {
+        // The padded day 2025-11-06 (5 contributions) lies outside the period, so GitHub's total of 10
+        // covers more than the five visible totals, which sum to the in-period 5.
+        $days = [['date' => '2025-11-06', 'contributionCount' => 5]];
+        for ($date = new DateTimeImmutable('2025-11-07'); $date <= new DateTimeImmutable('2026-11-06'); $date = $date->modify('+1 day')) {
+            $days[] = ['date' => $date->format('Y-m-d'), 'contributionCount' => $date->format('Y-m-d') === '2026-11-06' ? 5 : 0];
+        }
+        $contributions = json_encode(['data' => [
+            'rateLimit' => ['remaining' => 4000, 'resetAt' => '2026-11-06T13:00:00Z'],
+            'user' => ['login' => 'octo-sample', 'contributionsCollection' => [
+                'contributionCalendar' => ['totalContributions' => 10, 'weeks' => [['contributionDays' => $days]]],
+                'totalCommitContributions' => 5,
+                'totalIssueContributions' => 0,
+                'totalPullRequestContributions' => 0,
+                'totalPullRequestReviewContributions' => 0,
+                'totalRepositoryContributions' => 0,
+                'restrictedContributionsCount' => 0,
+                'hasAnyRestrictedContributions' => false,
+            ]],
+        ]], JSON_THROW_ON_ERROR);
+        $repositories = json_encode(['data' => ['user' => ['repositories' => [
+            'pageInfo' => ['hasNextPage' => false, 'endCursor' => null],
+            'nodes' => [],
+        ]]]], JSON_THROW_ON_ERROR);
+
+        $snapshot = $this->statistics([$this->response($contributions), $this->response($repositories)])
+            ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
+
+        self::assertSame(PrivateContributions::Excluded, $snapshot->privateContributions);
+    }
+
     public function testContributionsFailureAbortsBeforeRepositories(): void
     {
         $exception = $this->failure($this->statistics([$this->response('{}', 'read:user', 401)]));

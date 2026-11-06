@@ -7,6 +7,7 @@ namespace GitConstellation\GitHub;
 use DateTimeImmutable;
 use GitConstellation\Data\LiveSnapshot;
 use GitConstellation\Data\Period;
+use GitConstellation\Statistics\ContributionMetrics;
 use GitConstellation\Statistics\LanguageRanking;
 use GitConstellation\Statistics\PrivateContributions;
 
@@ -40,8 +41,9 @@ final class LiveStatistics
             $contributions->visibleTotals->reviews,
             $contributions->visibleTotals,
             $contributions->restrictedContributions,
+            // The five visible totals cover only the period, so compare them with the in-period sum, not GitHub's padded total.
             PrivateContributions::determine(
-                $contributions->calendarTotal,
+                ContributionMetrics::calculate($contributions->calendar)->totalContributions,
                 $contributions->visibleTotals,
                 $contributions->restrictedContributions,
                 $contributions->hasAnyRestrictedContributions,
