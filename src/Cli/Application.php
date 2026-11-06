@@ -12,6 +12,8 @@ use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\Period;
 use GitConstellation\Data\RendererData;
 use GitConstellation\GitHub\ContributionsQuery;
+use GitConstellation\GitHub\GitHubApiException;
+use GitConstellation\GitHub\GitHubErrorKind;
 use GitConstellation\GitHub\GraphQlClient;
 use GitConstellation\GitHub\LiveStatistics;
 use GitConstellation\GitHub\RepositoriesQuery;
@@ -24,6 +26,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class Application
 {
+    private const string LIVE_DEFAULT_OUTPUT = 'dist/live.png';
+
     /** @param array<string, string|false>|null $environment */
     public function __construct(
         private readonly string $projectRoot,
@@ -61,19 +65,25 @@ Run composer install, npm install, npm run build, and npx playwright install chr
 HELP);
                 return 0;
             }
-            $config = Configuration::fromArray(JsonFile::read($this->path($options->config)), $options->output);
+            $config = Configuration::fromArray(
+                $this->readConfig($options->config, $options->live),
+                $options->output,
+                $options->live ? self::LIVE_DEFAULT_OUTPUT : 'dist/constellation.png',
+            );
             $input = $this->projectRoot . '/build/data.json';
             $output = $this->path($config->output);
             $now = $this->now ?? new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
+            $secret = null;
             if ($options->live) {
-                $this->prepareLive($config, $now, $input);
+                $this->assertNotDemoImage($output);
+                $secret = $this->prepareLive($config, $now, $input);
             } else {
                 $fixture = DemoFixture::fromArray(JsonFile::read($this->path($options->fixture)));
                 JsonFile::write($input, RendererData::fromDemo($config, $fixture, $now));
                 fwrite(STDOUT, "DEMO — simulated statistics only. Prepared {$input}\n");
             }
-            (new NodeExporter())->export($this->projectRoot, $input, $output);
+            (new NodeExporter())->export($this->projectRoot, $input, $output, $secret);
             fwrite(STDOUT, ($options->live ? 'Generated live image: ' : 'Generated demo image: ') . $output . "\n");
 
             return 0;
@@ -83,7 +93,8 @@ HELP);
         }
     }
 
-    private function prepareLive(Configuration $config, DateTimeImmutable $now, string $input): void
+    /** @return string the token, so the renderer's environment can be scrubbed of it */
+    private function prepareLive(Configuration $config, DateTimeImmutable $now, string $input): string
     {
         $environment = Environment::load($this->projectRoot, $this->environment ?? getenv());
         $period = Period::trailingYear($now);
@@ -91,9 +102,52 @@ HELP);
         $statistics = new LiveStatistics($client, new ContributionsQuery($client), new RepositoriesQuery($client));
 
         // Nothing is written until the whole fetch succeeded, so a failed run never leaves a half-valid build/data.json.
-        $snapshot = $statistics->collect($config->username, $period, $now);
+        try {
+            $snapshot = $statistics->collect($config->username, $period, $now);
+        } catch (GitHubApiException $exception) {
+            if ($exception->kind !== GitHubErrorKind::Auth) {
+                throw $exception;
+            }
+            throw new GitHubApiException($exception->kind, $exception->getMessage() . " (token source: {$environment->source})", $exception);
+        }
         JsonFile::write($input, RendererData::fromLive($config, $snapshot));
         fwrite(STDOUT, Summary::format($snapshot, $period));
+
+        return $environment->githubToken;
+    }
+
+    /** @return array<string, mixed> */
+    private function readConfig(string $path, bool $live): array
+    {
+        try {
+            return JsonFile::read($this->path($path));
+        } catch (RuntimeException $exception) {
+            if (!$live || is_file($this->path($path))) {
+                throw $exception;
+            }
+            throw new RuntimeException($exception->getMessage() . ' Copy config/live.example.json to config/local.json and fill in your login.', 0, $exception);
+        }
+    }
+
+    private function assertNotDemoImage(string $output): void
+    {
+        if ($this->normalize($output) === $this->normalize($this->projectRoot . '/dist/constellation.png')) {
+            throw new RuntimeException('Live mode refuses to overwrite dist/constellation.png, the committed demo image. Use --output or set "output" in the config.');
+        }
+    }
+
+    private function normalize(string $path): string
+    {
+        $segments = [];
+        foreach (explode('/', str_replace('\\', '/', $path)) as $segment) {
+            if ($segment === '..') {
+                array_pop($segments);
+            } elseif ($segment !== '' && $segment !== '.') {
+                $segments[] = $segment;
+            }
+        }
+
+        return implode('/', $segments);
     }
 
     private function path(string $path): string

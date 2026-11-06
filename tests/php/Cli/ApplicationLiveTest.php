@@ -51,7 +51,7 @@ final class ApplicationLiveTest extends TestCase
      * @param array<string, string> $environment
      * @return array{int, string} Exit code and everything written to STDERR.
      */
-    private function runLive(array $environment, int $status): array
+    private function runLive(array $environment, int $status, string $config = 'config/local.json'): array
     {
         $this->requests = 0;
         $http = new MockHttpClient(function () use ($status): MockResponse {
@@ -66,7 +66,7 @@ final class ApplicationLiveTest extends TestCase
         stream_filter_register('constellation.capture', CapturingFilter::class);
         $filter = stream_filter_append(STDERR, 'constellation.capture', STREAM_FILTER_WRITE);
         try {
-            $code = $application->run(['--live', '--config=config/local.json']);
+            $code = $application->run(['--live', "--config={$config}"]);
         } finally {
             stream_filter_remove($filter);
         }
@@ -80,6 +80,7 @@ final class ApplicationLiveTest extends TestCase
         self::assertSame(1, $code);
         self::assertStringContainsString('HTTP 401', $stderr);
         self::assertStringNotContainsString('tok_test', $stderr);
+        self::assertStringContainsString('token source: environment', $stderr);
         self::assertFileDoesNotExist($this->root . '/build/data.json');
         self::assertSame(1, $this->requests);
     }
@@ -90,6 +91,45 @@ final class ApplicationLiveTest extends TestCase
         self::assertSame(1, $code);
         self::assertStringContainsString('read:user', $stderr);
         self::assertFileDoesNotExist($this->root . '/build/data.json');
+        self::assertSame(0, $this->requests);
+    }
+
+    public function testLiveRefusesToOverwriteTheDemoImageBeforeAnyRequest(): void
+    {
+        $config = json_decode((string) file_get_contents($this->root . '/config/local.json'), true);
+        $config['output'] = 'dist/../dist/constellation.png';
+        file_put_contents($this->root . '/config/demo-output.json', json_encode($config));
+
+        [$code, $stderr] = $this->runLive(['GITHUB_TOKEN' => 'tok_test'], 200, 'config/demo-output.json');
+        @unlink($this->root . '/config/demo-output.json');
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('Live mode refuses to overwrite dist/constellation.png', $stderr);
+        self::assertSame(0, $this->requests);
+        self::assertFileDoesNotExist($this->root . '/dist/constellation.png');
+    }
+
+    public function testLiveWithoutOutputInConfigDoesNotTargetTheDemoImage(): void
+    {
+        $config = json_decode((string) file_get_contents($this->root . '/config/local.json'), true);
+        unset($config['output']);
+        file_put_contents($this->root . '/config/no-output.json', json_encode($config));
+
+        [$code, $stderr] = $this->runLive(['GITHUB_TOKEN' => 'tok_test'], 401, 'config/no-output.json');
+        @unlink($this->root . '/config/no-output.json');
+
+        self::assertSame(1, $code);
+        self::assertStringNotContainsString('refuses to overwrite', $stderr);
+        self::assertSame(1, $this->requests);
+        self::assertFileDoesNotExist($this->root . '/dist/constellation.png');
+    }
+
+    public function testLiveWithMissingConfigHintsAtTheExample(): void
+    {
+        [$code, $stderr] = $this->runLive(['GITHUB_TOKEN' => 'tok_test'], 200, 'config/missing.json');
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('live.example.json', $stderr);
         self::assertSame(0, $this->requests);
     }
 }

@@ -24,6 +24,13 @@ final class ConfigurationTest extends TestCase
         self::assertSame('dist/new image.png', $custom->output);
     }
 
+    public function testDefaultOutputFollowsTheModeDefault(): void
+    {
+        self::assertSame('dist/live.png', Configuration::fromArray(self::BASE, null, 'dist/live.png')->output);
+        self::assertSame('dist/own.png', Configuration::fromArray(self::BASE + ['output' => 'dist/own.png'], null, 'dist/live.png')->output);
+        self::assertSame('dist/cli.png', Configuration::fromArray(self::BASE, 'dist/cli.png', 'dist/live.png')->output);
+    }
+
     #[DataProvider('invalidFields')]
     public function testInvalidConfigurationFailsWithActionableField(array $patch, string $field): void
     {

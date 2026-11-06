@@ -19,7 +19,7 @@ final readonly class Configuration
     ) {}
 
     /** @param array<string, mixed> $data */
-    public static function fromArray(array $data, ?string $outputOverride = null): self
+    public static function fromArray(array $data, ?string $outputOverride = null, string $defaultOutput = 'dist/constellation.png'): self
     {
         $unknown = array_diff(array_keys($data), ['username', 'name', 'role', 'stack', 'output', 'colors']);
         if ($unknown !== []) {
@@ -39,7 +39,7 @@ final readonly class Configuration
             throw new InvalidArgumentException('colors only supports cyan and green.');
         }
 
-        $output = $outputOverride ?? (array_key_exists('output', $data) ? $data['output'] : 'dist/constellation.png');
+        $output = $outputOverride ?? (array_key_exists('output', $data) ? $data['output'] : $defaultOutput);
         if (!is_string($output) || trim($output) === '' || preg_match('/[\x00-\x1f\x7f]/', $output)
             || strtolower(pathinfo($output, PATHINFO_EXTENSION)) !== 'png') {
             throw new InvalidArgumentException('output must be a non-empty PNG file path without control characters.');

@@ -12,14 +12,19 @@ final readonly class Environment
 {
     private function __construct(
         #[\SensitiveParameter] public string $githubToken,
+        public string $source,
     ) {}
 
     /** @param array<string, string|false> $processEnvironment */
     public static function load(string $projectRoot, array $processEnvironment): self
     {
         // The process environment wins because CI and shells set it explicitly.
-        $token = self::nonEmpty($processEnvironment['GITHUB_TOKEN'] ?? null)
-            ?? self::fromDotEnv($projectRoot . '/.env');
+        $token = self::nonEmpty($processEnvironment['GITHUB_TOKEN'] ?? null);
+        $source = 'environment';
+        if ($token === null) {
+            $token = self::fromDotEnv($projectRoot . '/.env');
+            $source = '.env';
+        }
 
         if ($token === null) {
             throw new RuntimeException(
@@ -31,7 +36,7 @@ final readonly class Environment
             throw new RuntimeException('GITHUB_TOKEN contains whitespace or control characters.');
         }
 
-        return new self($token);
+        return new self($token, $source);
     }
 
     private static function fromDotEnv(string $path): ?string

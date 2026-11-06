@@ -12,16 +12,18 @@ final class NodeExporter
      * @param array<string, string|false> $environment
      * @return array<string, string|false>
      */
-    public static function childEnvironment(array $environment): array
+    public static function childEnvironment(array $environment, #[\SensitiveParameter] ?string $secret = null): array
     {
+        // Names alone miss a token exported under an innocuous name such as GH_PAT, so the value is matched too.
         return array_filter(
             $environment,
-            fn (string $name): bool => preg_match('/TOKEN|SECRET|PASSWORD/i', $name) !== 1,
-            ARRAY_FILTER_USE_KEY,
+            fn (string|false $value, string $name): bool => preg_match('/TOKEN|SECRET|PASSWORD/i', $name) !== 1
+                && ($secret === null || $value !== $secret),
+            ARRAY_FILTER_USE_BOTH,
         );
     }
 
-    public function export(string $projectRoot, string $input, string $output): void
+    public function export(string $projectRoot, string $input, string $output, #[\SensitiveParameter] ?string $secret = null): void
     {
         $script = $projectRoot . '/build/renderer/export.js';
         if (!is_file($script)) {
@@ -43,7 +45,7 @@ final class NodeExporter
             $pipes,
             $projectRoot,
             // The renderer needs no credentials, so the child gets a filtered environment in case a token is set in the shell.
-            self::childEnvironment(getenv()),
+            self::childEnvironment(getenv(), $secret),
         );
         if (!is_resource($process)) {
             throw new RuntimeException('Cannot start Node. Install Node.js and ensure node is available on PATH.');
