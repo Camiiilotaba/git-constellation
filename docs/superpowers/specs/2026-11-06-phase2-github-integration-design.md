@@ -1,183 +1,185 @@
-# Fase 2 — Integración con GitHub (diseño)
+# Phase 2 — GitHub Integration (design)
 
-Fecha: 2026-11-06. Estado: **aprobado por el usuario el 2026-11-06** con los
-ajustes ya incorporados (salida `dist/live.png`, estado de tres valores para
-contribuciones privadas, PR/reviews como actividad visible, compatibilidad con
-Quick Start / Advanced Setup de la Fase 3).
+Date: 2026-11-06. Status: **approved by the project owner on 2026-11-06** with
+the adjustments already incorporated (`dist/live.png` output, three-state value
+for private contributions, PRs/reviews as visible activity, compatibility with
+the Phase 3 Quick Start / Advanced Setup).
 
-La Fase 1 fue aprobada visualmente por el usuario el 2026-11-06 (CONTINUITY.md
-se actualizará al aprobar este documento). El usuario ha confirmado que la
-implementación se delega a agentes Opus o modelos más básicos y que el agente
-principal revisa; el plan se divide por tanto en tareas pequeñas y
-autocontenidas con puntos de revisión explícitos.
+Phase 1 was visually approved by the project owner on 2026-11-06 (CONTINUITY.md
+will be updated when this document is approved). The project owner has
+confirmed that implementation is delegated to Opus agents or simpler models and
+that the main agent reviews; the plan is therefore split into small,
+self-contained tasks with explicit review checkpoints.
 
-## 1. Intención y porqué
+## 1. Intent and rationale
 
-La Fase 1 produce la imagen aprobada a partir de un fixture simulado. La Fase 2
-sustituye ese fixture por estadísticas reales obtenidas con la API GraphQL
-oficial de GitHub, manteniendo intacto el diseño aprobado y el pipeline
-PHP → `build/data.json` → renderer TypeScript → Playwright.
+Phase 1 produces the approved image from a simulated fixture. Phase 2 replaces
+that fixture with real statistics obtained from the official GitHub GraphQL API,
+keeping the approved design and the PHP → `build/data.json` → TypeScript
+renderer → Playwright pipeline intact.
 
-El objetivo inmediato es que el usuario ejecute la herramienta en su máquina,
-con un token personal en `.env`, contra su propia cuenta, y compruebe que las
-cifras coinciden con lo que GitHub muestra en su perfil, incluidos los recuentos
-anonimizados de contribuciones privadas que ya tiene habilitados. La herramienta
-debe seguir siendo reutilizable por cualquier otra persona con su propio token y
-su propio `config`.
+The immediate goal is for the project owner to run the tool on their machine,
+with a personal token in `.env`, against their own account, and check that the
+figures match what GitHub shows on their profile, including the anonymized
+private-contribution counts they already have enabled. The tool must remain
+reusable by anyone else with their own token and their own `config`.
 
-## 2. Objetivos, no-objetivos y anti-objetivos
+## 2. Goals, non-goals and anti-goals
 
-### Objetivos
+### Goals
 
-1. Modo `--live` que consulta GitHub GraphQL y genera `dist/live.png` (ruta por
-   defecto; `dist/constellation.png` sigue siendo la imagen demo comprometida)
-   con datos reales: calendario diario de los últimos 12 meses, Pull Requests,
-   Code Reviews, Active Days, Longest Streak y ranking de lenguajes.
-2. Dos escenarios soportados por el mismo código: cuenta propia autenticada y
-   cuenta pública de otra persona. Solo cambia el `username` configurado.
-3. Distinguir métricas disponibles de restringidas y reflejarlo en la imagen y
-   en la salida de la CLI.
-4. Modo `--demo` intacto para desarrollo y pruebas.
-5. Los cuatro ajustes menores aprobados en la revisión visual (sección 7).
-6. Pruebas unitarias con cliente HTTP simulado, una prueba de integración
-   opcional contra la API real y pruebas de renderer/visuales actualizadas.
-7. Documentación de permisos, privacidad y limitaciones.
+1. A `--live` mode that queries GitHub GraphQL and generates `dist/live.png`
+   (default path; `dist/constellation.png` remains the committed demo image)
+   with real data: daily calendar for the last 12 months, Pull Requests, Code
+   Reviews, Active Days, Longest Streak and language ranking.
+2. Two scenarios supported by the same code: the authenticated user's own
+   account and another person's public account. Only the configured `username`
+   changes.
+3. Distinguish available metrics from restricted ones and reflect that in the
+   image and in the CLI output.
+4. `--demo` mode left intact for development and tests.
+5. The four minor adjustments approved in the visual review (section 7).
+6. Unit tests with a mocked HTTP client, an optional integration test against
+   the real API, and updated renderer/visual tests.
+7. Documentation of permissions, privacy and limitations.
 
-### No-objetivos (fases posteriores o nunca)
+### Non-goals (later phases or never)
 
-- GitHub Actions, publicación automática, cualquier cosa de la Fase 3.
-- API REST, caché persistente de respuestas, modo offline con datos antiguos.
-- Métricas nuevas (commits, issues, estrellas, porcentajes de lenguajes).
-- Repositorios de organizaciones, cuentas de empresa, GitHub Enterprise Server.
-- Rediseño visual más allá de los ajustes de la sección 7.
-- Soporte de proxies, tokens de GitHub App o OAuth.
+- GitHub Actions, automatic publishing, anything from Phase 3.
+- REST API, persistent response cache, offline mode with old data.
+- New metrics (commits, issues, stars, language percentages).
+- Organization repositories, enterprise accounts, GitHub Enterprise Server.
+- Visual redesign beyond the adjustments in section 7.
+- Support for proxies, GitHub App tokens or OAuth.
 
-### Anti-objetivos (fracaso aunque "funcione")
+### Anti-goals (failure even if it "works")
 
-- Inventar cifras o sustituir silenciosamente datos reales por el fixture demo
-  cuando la API falle. Un fallo de API termina con exit 1 y sin imagen nueva.
-- Que el token aparezca en `data.json`, en HTML, en logs, en mensajes de error
-  o en argumentos de proceso.
-- Pedir el scope `repo` o cualquier permiso que dé acceso a código privado.
-- Guardar o mostrar nombres de repositorios privados, ramas, títulos de PR o
-  cualquier metadato interno. Las consultas no piden nombres de repositorio.
-- Afirmar en la imagen que PR o reviews incluyen actividad privada.
+- Inventing figures or silently replacing real data with the demo fixture when
+  the API fails. An API failure ends with exit 1 and no new image.
+- The token appearing in `data.json`, in HTML, in logs, in error messages or in
+  process arguments.
+- Requesting the `repo` scope or any permission that gives access to private
+  code.
+- Storing or displaying private repository names, branches, PR titles or any
+  internal metadata. The queries do not request repository names.
+- Claiming in the image that PRs or reviews include private activity.
 
-## 3. Hechos verificados de la API de GitHub
+## 3. Verified facts about the GitHub API
 
-Estos hechos condicionan el diseño. Fuente: referencia GraphQL de GitHub
+These facts constrain the design. Source: the GitHub GraphQL reference
 (`User.contributionsCollection`, `ContributionsCollection.restrictedContributionsCount`)
-y la documentación del ajuste de perfil "Include private contributions on my
-profile".
+and the documentation of the profile setting "Include private contributions on
+my profile".
 
-- `contributionsCollection(from, to)` acepta un rango máximo de un año.
-  `contributionCalendar.weeks[].contributionDays[]` devuelve `date` y
-  `contributionCount` por día; las semanas devueltas pueden incluir días fuera
-  del rango pedido, que hay que filtrar.
-- Si el propietario de la cuenta ha activado la visibilidad de contribuciones
-  privadas, el calendario diario incluye esos recuentos para **cualquier**
-  consultante autenticado, no solo para el propietario. Eso cubre el escenario
-  "cuenta pública de otro usuario". La afirmación previa de que solo el
-  propietario podía verlos era incorrecta.
-- `restrictedContributionsCount` es el número de contribuciones que el
-  consultante no puede ver; solo es distinto de cero cuando el propietario
-  comparte sus recuentos privados. `hasAnyRestrictedContributions` lo
-  acompaña como booleano.
-- `totalPullRequestContributions` y `totalPullRequestReviewContributions`
-  cuentan solo PR y reviews en repositorios que el token puede ver. Con un
-  token sin scope `repo`, las PR y reviews privadas **no** entran en esos
-  totales; quedan dentro del recuento restringido. Por tanto esas dos métricas
-  son "actividad visible", no "toda la actividad".
-- Token mínimo recomendado: token clásico con solo `read:user`. Es el scope
-  que la referencia cita para incluir las contribuciones privadas e internas
-  como recuentos. Los tokens de grano fino no están verificados para
-  `contributionsCollection`; la documentación los mencionará como no probados.
-- La API GraphQL siempre requiere un token, incluso para datos públicos.
-- Límite de tasa: 5 000 puntos por hora por token. Esta herramienta hace entre
-  2 y unas 12 peticiones por ejecución, así que no se diseña caché.
+- `contributionsCollection(from, to)` accepts a range of at most one year.
+  `contributionCalendar.weeks[].contributionDays[]` returns `date` and
+  `contributionCount` per day; the returned weeks may include days outside the
+  requested range, which must be filtered out.
+- If the account owner has enabled private-contribution visibility, the daily
+  calendar includes those counts for **any** authenticated querier, not just the
+  owner. That covers the "another user's public account" scenario. The earlier
+  claim that only the owner could see them was incorrect.
+- `restrictedContributionsCount` is the number of contributions the querier
+  cannot see; it is non-zero only when the owner shares their private counts.
+  `hasAnyRestrictedContributions` accompanies it as a boolean.
+- `totalPullRequestContributions` and `totalPullRequestReviewContributions`
+  count only PRs and reviews in repositories the token can see. With a token
+  without the `repo` scope, private PRs and reviews do **not** enter those
+  totals; they fall within the restricted count. These two metrics are therefore
+  "visible activity", not "all activity".
+- Recommended minimum token: a classic token with only `read:user`. This is the
+  scope the reference cites for including private and internal contributions as
+  counts. Fine-grained tokens are not verified for `contributionsCollection`;
+  the documentation will mention them as untested.
+- The GraphQL API always requires a token, even for public data.
+- Rate limit: 5,000 points per hour per token. This tool makes between 2 and
+  about 12 requests per run, so no cache is designed.
 
-## 4. Restricciones heredadas de la Fase 1
+## 4. Constraints inherited from Phase 1
 
-- Stack fijo: PHP 8.3, Symfony HttpClient 7.4 (ya instalado, sin usar),
-  PHPUnit 12.5, TypeScript 5.9, Vitest 4.1, Playwright 1.65. Nada de Laravel,
-  React, Vue ni Tailwind.
-- `ContributionCalendar` exige un día por cada fecha del período, sin huecos ni
-  duplicados, y como máximo 366 días. `ContributionMetrics::calculate` y
-  `LanguageRanking::calculate` se reutilizan sin cambios: el primero recibe el
-  calendario, el segundo una lista de repositorios con `visibility`, `isFork`,
-  `isArchived` y `languages[{name,color}]`.
-- El renderer recalcula `totalContributions`, `activeDays` y `longestStreak`
-  desde `days` y rechaza el archivo si no coinciden. Eso es una verificación
-  gratuita que se conserva.
-- `NodeExporter` ejecuta Node sin shell con `--input/--output`; no cambia.
-- `.gitignore` ya ignora `.env`, `.env.*` (salvo `.env.example`) y
-  `config/local.json`. Ese es el sitio previsto para la configuración personal.
+- Fixed stack: PHP 8.3, Symfony HttpClient 7.4 (already installed, unused),
+  PHPUnit 12.5, TypeScript 5.9, Vitest 4.1, Playwright 1.65. No Laravel, React,
+  Vue or Tailwind.
+- `ContributionCalendar` requires one day for each date of the period, with no
+  gaps or duplicates, and at most 366 days. `ContributionMetrics::calculate` and
+  `LanguageRanking::calculate` are reused unchanged: the first receives the
+  calendar, the second a list of repositories with `visibility`, `isFork`,
+  `isArchived` and `languages[{name,color}]`.
+- The renderer recalculates `totalContributions`, `activeDays` and
+  `longestStreak` from `days` and rejects the file if they do not match. That is
+  a free check that is kept.
+- `NodeExporter` runs Node without a shell with `--input/--output`; this does
+  not change.
+- `.gitignore` already ignores `.env`, `.env.*` (except `.env.example`) and
+  `config/local.json`. That is the intended place for personal configuration.
 
-### 4.1 Compatibilidad con la Fase 3 (sin implementarla)
+### 4.1 Compatibility with Phase 3 (without implementing it)
 
-El usuario ha fijado que, al terminar, la herramienta tendrá dos modalidades:
-**Quick Start** (un workflow reutilizable de GitHub Actions; sin instalar PHP ni
-Node, sin clonar ni hacer fork; usando el `GITHUB_TOKEN` automático cuando
-baste y un token personal en Secrets cuando no) y **Advanced Setup**
-(ejecución local con `.env`, como en esta fase). Nada de eso se construye
-ahora, pero la Fase 2 no debe cerrar la puerta. Restricciones que se derivan:
+The project owner has stipulated that, when finished, the tool will have two
+modes: **Quick Start** (a reusable GitHub Actions workflow; no PHP or Node
+installation, no cloning or forking; using the automatic `GITHUB_TOKEN` when it
+suffices and a personal token in Secrets when it does not) and **Advanced
+Setup** (local execution with `.env`, as in this phase). None of that is built
+now, but Phase 2 must not close the door on it. Constraints that follow:
 
-- El token se lee siempre de la variable de entorno `GITHUB_TOKEN`; `.env` es
-  solo una forma de poblarla en local. En Actions no habrá `.env`.
-- Todo lo que hoy se configura en `config/*.json` (username, name, role, stack,
-  output, colores) debe poder venir también por opciones de CLI en la Fase 3.
-  En esta fase basta con que `Configuration` siga siendo un objeto inmutable
-  construido desde un array, sin acoplarse al archivo.
-- La CLI no debe depender del directorio de trabajo ni de rutas relativas al
-  proyecto para leer `.env` o escribir la salida: `Application` ya recibe
-  `projectRoot` explícito; se mantiene.
-- No se asume que el token es un PAT clásico: el cliente solo exige "Bearer
-  <token>". Si el `GITHUB_TOKEN` automático de Actions resulta insuficiente
-  para los recuentos privados, es un hallazgo de la Fase 3, y el estado
-  `unknown` de `privateContributions` cubre ese caso sin inventar nada.
+- The token is always read from the `GITHUB_TOKEN` environment variable; `.env`
+  is only a way to populate it locally. In Actions there will be no `.env`.
+- Everything that is configured today in `config/*.json` (username, name, role,
+  stack, output, colors) must also be able to come through CLI options in
+  Phase 3. In this phase it is enough that `Configuration` remains an immutable
+  object built from an array, not coupled to the file.
+- The CLI must not depend on the working directory or on project-relative paths
+  to read `.env` or write the output: `Application` already receives an explicit
+  `projectRoot`; this is kept.
+- It is not assumed that the token is a classic PAT: the client only requires
+  "Bearer <token>". If the automatic Actions `GITHUB_TOKEN` turns out to be
+  insufficient for the private counts, that is a Phase 3 finding, and the
+  `unknown` state of `privateContributions` covers that case without inventing
+  anything.
 
-## 5. Decisiones tomadas
+## 5. Decisions made
 
-Cada decisión indica si la fijó el usuario o es una elección del diseño.
+Each decision indicates whether the project owner set it or it is a design
+choice.
 
 ### 5.1 CLI
 
-| Decisión | Quién |
+| Decision | Who |
 |---|---|
-| `--demo` y `--live` son flags mutuamente excluyentes y uno es obligatorio. Sin ninguno, error con ayuda. | diseño |
-| En `--live` el login consultado es `username` del `config`. No existe `--user`: para consultar a otra persona se usa otro archivo de configuración con su `username`, `name`, `role` y `stack`, de modo que la imagen nunca mezcla el nombre de una persona con las estadísticas de otra. | diseño |
-| Se añade `config/live.example.json` como plantilla; el usuario copia a `config/local.json` (ya ignorado) y ejecuta `php bin/constellation --live --config=config/local.json`. | diseño |
-| La salida por defecto en `config/live.example.json` es `dist/live.png` (ignorada por `.gitignore`, que solo conserva `dist/constellation.png`). Así una ejecución real nunca sobrescribe la imagen demo comprometida ni acaba publicada por accidente. El usuario puede elegir otra ruta con `--output` o en su config. | diseño |
-| `name`, `role` y `stack` siguen viniendo del `config`, no de GitHub. El usuario controla el texto mostrado. | diseño |
-| La CLI imprime al final un resumen de verificación en texto plano: login, período, total del calendario, recuento restringido, PR, reviews, días activos, racha, repositorios escaneados, top lenguajes y puntos de rate limit restantes. Nunca el token. | diseño |
-| Cualquier fallo de red, autenticación, rate limit, GraphQL o validación termina con exit 1, mensaje en STDERR y sin tocar la imagen anterior. No existe fallback a demo. | usuario |
+| `--demo` and `--live` are mutually exclusive flags and one is mandatory. With neither, an error with help. | design |
+| In `--live` the queried login is the `config`'s `username`. There is no `--user`: to query another person, another configuration file is used with their `username`, `name`, `role` and `stack`, so that the image never mixes one person's name with another's statistics. | design |
+| `config/live.example.json` is added as a template; the project owner copies it to `config/local.json` (already ignored) and runs `php bin/constellation --live --config=config/local.json`. | design |
+| The default output in `config/live.example.json` is `dist/live.png` (ignored by `.gitignore`, which keeps only `dist/constellation.png`). This way a real run never overwrites the committed demo image nor ends up published by accident. The project owner can choose another path with `--output` or in their config. | design |
+| `name`, `role` and `stack` keep coming from the `config`, not from GitHub. The project owner controls the displayed text. | design |
+| At the end the CLI prints a plain-text verification summary: login, period, calendar total, restricted count, PRs, reviews, active days, streak, repositories scanned, top languages and remaining rate-limit points. Never the token. | design |
+| Any network, authentication, rate-limit, GraphQL or validation failure ends with exit 1, a message on STDERR and the previous image untouched. There is no fallback to demo. | project owner |
 
-### 5.2 Token y entorno
+### 5.2 Token and environment
 
-| Decisión | Quién |
+| Decision | Who |
 |---|---|
-| El token se lee de `GITHUB_TOKEN`. En modo `--live` se carga `<raíz>/.env` si existe, sin sobrescribir variables ya presentes en el proceso. En modo `--demo` no se lee nada. | usuario (ubicación) / diseño (precedencia) |
-| Se añade la dependencia `symfony/dotenv ^7.4` para parsear `.env`. Misma familia que HttpClient, evita un parser casero. Se usa solo `Dotenv::parse()`: el token se guarda en un objeto en memoria y **nunca** se exporta a `$_ENV`, `$_SERVER` ni `putenv`. | diseño |
-| `NodeExporter` pasa a `proc_open` un entorno explícito del que se eliminan `GITHUB_TOKEN` y cualquier variable cuyo nombre contenga `TOKEN`, `SECRET` o `PASSWORD`, para que el proceso Node/Chromium no herede credenciales. | diseño |
-| El token se valida solo como "no vacío, sin espacios ni caracteres de control". No se valida prefijo. | diseño |
-| El token viaja únicamente en la cabecera `Authorization: Bearer`. Las excepciones se construyen sin incluir cabeceras ni cuerpos de petición. Las pruebas comprueban que ningún mensaje de error contiene el token. | usuario |
-| `.env.example` documenta `GITHUB_TOKEN` y el scope mínimo `read:user`. | diseño |
+| The token is read from `GITHUB_TOKEN`. In `--live` mode `<root>/.env` is loaded if it exists, without overwriting variables already present in the process. In `--demo` mode nothing is read. | project owner (location) / design (precedence) |
+| The dependency `symfony/dotenv ^7.4` is added to parse `.env`. Same family as HttpClient, avoids a home-made parser. Only `Dotenv::parse()` is used: the token is held in an in-memory object and is **never** exported to `$_ENV`, `$_SERVER` or `putenv`. | design |
+| `NodeExporter` passes `proc_open` an explicit environment from which `GITHUB_TOKEN` and any variable whose name contains `TOKEN`, `SECRET` or `PASSWORD` are removed, so that the Node/Chromium process does not inherit credentials. | design |
+| The token is validated only as "non-empty, with no whitespace or control characters". The prefix is not validated. | design |
+| The token travels only in the `Authorization: Bearer` header. Exceptions are built without including headers or request bodies. Tests verify that no error message contains the token. | project owner |
+| `.env.example` documents `GITHUB_TOKEN` and the minimum scope `read:user`. | design |
 
-### 5.3 Período
+### 5.3 Period
 
-| Decisión | Quién |
+| Decision | Who |
 |---|---|
-| Período móvil: `end` = hoy en UTC, `start` = el mismo día del año anterior más un día, de modo que cubre 365 días (366 si incluye 29 de febrero, dentro del límite de `ContributionCalendar`). | diseño |
-| `from` = `start T00:00:00Z`, `to` = `end T23:59:59Z`. Los días devueltos fuera de `[start, end]` se descartan antes de construir el calendario. | diseño |
-| El subtítulo de la imagen muestra el período real con el formato ya existente ("Nov 2025 – Nov 2026"). El primer mes puede ser parcial; la constelación ya soporta semanas parciales. | diseño |
-| El resumen de la CLI y `data.json` registran `generatedAt` (ISO 8601 UTC) para que el usuario sepa cuándo se tomó la foto. | diseño |
+| Rolling period: `end` = today in UTC, `start` = the same day of the previous year plus one day, so that it covers 365 days (366 if it includes 29 February, within the `ContributionCalendar` limit). | design |
+| `from` = `start T00:00:00Z`, `to` = `end T23:59:59Z`. Returned days outside `[start, end]` are discarded before building the calendar. | design |
+| The image subtitle shows the actual period in the existing format ("Nov 2025 – Nov 2026"). The first month may be partial; the constellation already supports partial weeks. | design |
+| The CLI summary and `data.json` record `generatedAt` (ISO 8601 UTC) so the project owner knows when the snapshot was taken. | design |
 
-### 5.4 Consultas GraphQL
+### 5.4 GraphQL queries
 
-Dos consultas, ambas sobre `user(login:)` para que cuenta propia y ajena
-compartan código. No se usa `viewer`.
+Two queries, both on `user(login:)` so that own and other accounts share code.
+`viewer` is not used.
 
-**Consulta A — contribuciones** (una petición):
+**Query A — contributions** (one request):
 
 ```graphql
 query($login: String!, $from: DateTime!, $to: DateTime!) {
@@ -201,7 +203,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 }
 ```
 
-**Consulta B — repositorios para lenguajes** (paginada, 100 por página):
+**Query B — repositories for languages** (paginated, 100 per page):
 
 ```graphql
 query($login: String!, $after: String) {
@@ -223,275 +225,277 @@ query($login: String!, $after: String) {
 }
 ```
 
-| Decisión | Quién |
+| Decision | Who |
 |---|---|
-| No se piden `name`, `nameWithOwner`, `description` ni URLs de repositorio. Así no hay nada que filtrar ni que pueda acabar en un archivo. | usuario (privacidad) / diseño (mecanismo) |
-| Solo repositorios con `ownerAffiliations: OWNER`. Los repositorios de organizaciones quedan fuera del ranking en V1 porque sus lenguajes no representan necesariamente los que el usuario usa personalmente. Incluir organizaciones podrá ser una opción configurable en versiones futuras. | usuario |
-| `privacy: PUBLIC` e `isFork: false` en la consulta, y además `LanguageRanking` vuelve a filtrar `visibility`, `isFork`, `isArchived`. Doble barrera. | diseño |
-| Máximo 20 páginas (2 000 repositorios). Más allá, error explícito en vez de ranking truncado en silencio. | diseño |
-| Hasta 20 lenguajes por repositorio (la Fase 1 ya cuenta lenguajes secundarios). | diseño |
-| `user` nulo (login inexistente) → error "usuario no encontrado". `login` devuelto distinto del pedido (ignorando mayúsculas) → error. | diseño |
-| GitHub devuelve `color: null` para lenguajes sin color asignado. `RepositoriesQuery` sustituye `null` por el gris neutro `#8b949e` (el que usa la propia interfaz de GitHub) antes de pasar los datos a `LanguageRanking`, que no cambia. El color es presentación, no una estadística; el recuento del lenguaje no se altera ni se omite. | diseño |
+| `name`, `nameWithOwner`, `description` and repository URLs are not requested. This way there is nothing to filter and nothing that could end up in a file. | project owner (privacy) / design (mechanism) |
+| Only repositories with `ownerAffiliations: OWNER`. Organization repositories are left out of the ranking in V1 because their languages do not necessarily represent the ones the user personally uses. Including organizations may become a configurable option in future versions. | project owner |
+| `privacy: PUBLIC` and `isFork: false` in the query, and in addition `LanguageRanking` filters `visibility`, `isFork`, `isArchived` again. Double barrier. | design |
+| At most 20 pages (2,000 repositories). Beyond that, an explicit error instead of a silently truncated ranking. | design |
+| Up to 20 languages per repository (Phase 1 already counts secondary languages). | design |
+| Null `user` (nonexistent login) → "user not found" error. Returned `login` different from the requested one (ignoring case) → error. | design |
+| GitHub returns `color: null` for languages with no assigned color. `RepositoriesQuery` replaces `null` with the neutral gray `#8b949e` (the one GitHub's own interface uses) before passing the data to `LanguageRanking`, which does not change. The color is presentation, not a statistic; the language count is neither altered nor omitted. | design |
 
-### 5.5 Cliente HTTP y errores
+### 5.5 HTTP client and errors
 
-| Decisión | Quién |
+| Decision | Who |
 |---|---|
-| `POST https://api.github.com/graphql`, cabeceras `Authorization`, `User-Agent: git-constellation`, `Accept: application/json`, timeout 30 s, respuesta máxima 5 MB. | diseño |
-| Reintentos: hasta 2 reintentos con espera creciente solo para errores de transporte y HTTP 5xx. Ninguno para 4xx. | diseño |
-| Mapeo de errores a mensajes claros: 401 → token inválido o ausente; 403/429 con `x-ratelimit-remaining: 0` → límite de tasa con hora de reinicio; otros 4xx → mensaje con código; cuerpo no JSON → error de formato. | diseño |
-| Si la respuesta trae `errors` (aunque también traiga `data`), se falla. No se aceptan datos parciales. Los mensajes de `errors[].message` se reenvían al usuario; GitHub no incluye el token en ellos. | usuario (no datos parciales) |
-| El cliente recibe `HttpClientInterface` por constructor para poder inyectar `MockHttpClient` en pruebas. | diseño |
+| `POST https://api.github.com/graphql`, headers `Authorization`, `User-Agent: git-constellation`, `Accept: application/json`, 30 s timeout, 5 MB maximum response. | design |
+| Retries: up to 2 retries with increasing delay only for transport errors and HTTP 5xx. None for 4xx. | design |
+| Error mapping to clear messages: 401 → invalid or missing token; 403/429 with `x-ratelimit-remaining: 0` → rate limit with reset time; other 4xx → message with the code; non-JSON body → format error. | design |
+| If the response carries `errors` (even if it also carries `data`), it fails. Partial data is not accepted. The `errors[].message` messages are forwarded to the user; GitHub does not include the token in them. | project owner (no partial data) |
+| The client receives `HttpClientInterface` through its constructor so that `MockHttpClient` can be injected in tests. | design |
 
-### 5.6 Mapeo a métricas
+### 5.6 Mapping to metrics
 
-| Campo de salida | Origen | Incluye actividad privada |
+| Output field | Source | Includes private activity |
 |---|---|---|
-| `days[]` | calendario diario filtrado al período | sí, como recuentos, si el propietario lo comparte |
-| `metrics.totalContributions` | suma de `days[]` (debe coincidir con `contributionCalendar.totalContributions`; si no, error) | sí, igual que arriba |
-| `metrics.activeDays`, `metrics.longestStreak` | `ContributionMetrics::calculate` sobre `days[]` | sí, igual que arriba |
-| `metrics.pullRequests` | `totalPullRequestContributions` | no (solo repos visibles para el token) |
-| `metrics.codeReviews` | `totalPullRequestReviewContributions` | no (solo repos visibles para el token) |
-| `languages[]` | `LanguageRanking::calculate` sobre consulta B | no (solo públicos) |
-| `privateContributions` | estado de tres valores, regla más abajo | — |
+| `days[]` | daily calendar filtered to the period | yes, as counts, if the owner shares them |
+| `metrics.totalContributions` | sum of `days[]` (must match `contributionCalendar.totalContributions`; otherwise error) | yes, same as above |
+| `metrics.activeDays`, `metrics.longestStreak` | `ContributionMetrics::calculate` over `days[]` | yes, same as above |
+| `metrics.pullRequests` | `totalPullRequestContributions` | no (only repos visible to the token) |
+| `metrics.codeReviews` | `totalPullRequestReviewContributions` | no (only repos visible to the token) |
+| `languages[]` | `LanguageRanking::calculate` over query B | no (public only) |
+| `privateContributions` | three-state value, rule below | — |
 | `source.restrictedContributions` | `restrictedContributionsCount` | — |
-| `source.visibleTotals` | los cinco totales visibles (commits, issues, PR, reviews, repositorios creados) | no |
+| `source.visibleTotals` | the five visible totals (commits, issues, PRs, reviews, repositories created) | no |
 
-**Estado de contribuciones privadas (tres valores).** El usuario ha pedido no
-asumir que toda la actividad es pública solo porque `restrictedContributionsCount`
-sea cero. La consulta A pide, además de los campos ya listados,
-`totalCommitContributions`, `totalIssueContributions` y
-`totalRepositoryContributions`. Con ello:
+**Private contributions state (three values).** The project owner asked not to
+assume that all activity is public just because `restrictedContributionsCount`
+is zero. Query A requests, in addition to the fields already listed,
+`totalCommitContributions`, `totalIssueContributions` and
+`totalRepositoryContributions`. With that:
 
-- `included`: `restrictedContributionsCount > 0`, o
-  `hasAnyRestrictedContributions` es `true`, o
-  `contributionCalendar.totalContributions` supera la suma de los cinco totales
-  visibles. Cualquiera de las tres señales basta.
-- `excluded`: el recuento restringido es 0, `hasAnyRestrictedContributions` es
-  `false` **y** el total del calendario es exactamente igual a la suma de los
-  cinco totales visibles. Es decir, los datos no contienen ningún recuento que
-  no esté explicado por actividad visible. No es una suposición: es una
-  comprobación aritmética sobre la respuesta.
-- `unknown`: cualquier otro caso (falta algún campo, el calendario es menor que
-  la suma visible, o la aritmética no cuadra de ninguna forma prevista).
+- `included`: `restrictedContributionsCount > 0`, or
+  `hasAnyRestrictedContributions` is `true`, or
+  `contributionCalendar.totalContributions` exceeds the sum of the five visible
+  totals. Any one of the three signals is enough.
+- `excluded`: the restricted count is 0, `hasAnyRestrictedContributions` is
+  `false` **and** the calendar total is exactly equal to the sum of the five
+  visible totals. That is, the data contains no count that is not explained by
+  visible activity. This is not an assumption: it is an arithmetic check on the
+  response.
+- `unknown`: any other case (a field is missing, the calendar is smaller than
+  the visible sum, or the arithmetic does not add up in any foreseen way).
 
-**Corrección del usuario (2026-11-06, prevalece sobre lo anterior):** la señal
-aritmética (`calendario > suma visible`) **no** basta para `included`. Solo
-`restrictedContributionsCount > 0` o `hasAnyRestrictedContributions` marcan
-`included`. Un calendario mayor que la suma visible sin señal restringida es
-`unknown`. Además, un token con scope `repo` hace que la ejecución se rechace
-con error, no con advertencia.
+**Project owner's correction (2026-11-06, takes precedence over the above):**
+the arithmetic signal (`calendar > visible sum`) is **not** enough for
+`included`. Only `restrictedContributionsCount > 0` or
+`hasAnyRestrictedContributions` mark `included`. A calendar larger than the
+visible sum with no restricted signal is `unknown`. In addition, a token with
+the `repo` scope causes the run to be rejected with an error, not a warning.
 
-Subtítulo de la imagen según el estado: `included` → "private counts
+Image subtitle according to the state: `included` → "private counts
 anonymized"; `excluded` → "public activity only"; `unknown` → "visible activity
-only" (texto neutro, sin afirmar que sea toda ni que sea solo pública).
+only" (neutral text, without claiming it is all activity or only public
+activity).
 
-**PR y Code Reviews.** Son recuentos de la actividad visible para el token y
-pueden excluir actividad privada. Esto se refleja en tres sitios: el resumen de
-la CLI (línea "Pull Requests (visible to token): N"), el atributo `title` de
-las dos tarjetas en el HTML ("Visible to the token; may exclude private
-activity"), y la tabla de limitaciones del README y de `docs/phase-2.md`. No se
-añade texto visible nuevo a las tarjetas, por respeto al diseño aprobado.
+**PRs and Code Reviews.** These are counts of the activity visible to the token
+and may exclude private activity. This is reflected in three places: the CLI
+summary (line "Pull Requests (visible to token): N"), the `title` attribute of
+the two cards in the HTML ("Visible to the token; may exclude private
+activity"), and the limitations table in the README and in `docs/phase-2.md`. No
+new visible text is added to the cards, out of respect for the approved design.
 
-**Incertidumbre pendiente de verificar con la API real.** Los hechos de la
-sección 3 proceden de la documentación, no de una ejecución. Queda una duda
-concreta para el escenario principal (el propietario consulta su propia cuenta
-con un token `read:user` sin `repo`): no está confirmado si GitHub trata sus
-contribuciones privadas como "restringidas" para ese token (recuento > 0) o
-como accesibles (recuento 0 aunque el calendario las incluya). El spike previo
-(sección 6) comprueba también si `totalContributions` del calendario es igual a
-la suma de los cinco totales visibles más `restrictedContributionsCount`; si
-esa identidad se cumple, la regla de tres estados es exacta y se fija tal cual.
-Si no se cumple, se documenta la discrepancia y el estado por defecto para ese
-caso pasa a `unknown`. El resultado del spike queda anotado en `docs/phase-2.md`.
+**Uncertainty still to verify with the real API.** The facts in section 3 come
+from documentation, not from a run. One concrete doubt remains for the main
+scenario (the owner queries their own account with a `read:user` token without
+`repo`): it is not confirmed whether GitHub treats their private contributions
+as "restricted" for that token (count > 0) or as accessible (count 0 even though
+the calendar includes them). The prior spike (section 6) also checks whether the
+calendar's `totalContributions` equals the sum of the five visible totals plus
+`restrictedContributionsCount`; if that identity holds, the three-state rule is
+exact and is fixed as is. If it does not hold, the discrepancy is documented and
+the default state for that case becomes `unknown`. The spike result is recorded
+in `docs/phase-2.md`.
 
-### 5.7 Contrato `data.json`
+### 5.7 `data.json` contract
 
-Se publica `schemaVersion: 2`. Cambios respecto a v1:
+`schemaVersion: 2` is published. Changes relative to v1:
 
 - `mode`: `"demo" | "live"`.
-- `generatedAt`: cadena ISO 8601 UTC. Presente en ambos modos.
-- `source`: objeto con `provider: "github"`, `login`, `restrictedContributions`
-  (entero ≥ 0), `visibleTotals` (objeto con `commits`, `issues`,
-  `pullRequests`, `reviews`, `repositories`, enteros ≥ 0) y
-  `repositoriesScanned` (entero ≥ 0). En demo, `source` es `null`.
-- `privateContributions`: `"included" | "excluded" | "unknown"`. Sustituye al
-  booleano `privateContributionsIncluded` de v1. En demo es obligatoriamente
-  `"excluded"`; `"included"` y `"unknown"` solo se aceptan en `mode: "live"`.
-- Todo lo demás (profile, theme, period, days, metrics, languages) no cambia.
-- El renderer rechaza `schemaVersion` distinto de 2. `RendererData::fromDemo`
-  también emite v2 para que haya un único contrato.
+- `generatedAt`: ISO 8601 UTC string. Present in both modes.
+- `source`: object with `provider: "github"`, `login`, `restrictedContributions`
+  (integer ≥ 0), `visibleTotals` (object with `commits`, `issues`,
+  `pullRequests`, `reviews`, `repositories`, integers ≥ 0) and
+  `repositoriesScanned` (integer ≥ 0). In demo, `source` is `null`.
+- `privateContributions`: `"included" | "excluded" | "unknown"`. Replaces the
+  boolean `privateContributionsIncluded` from v1. In demo it is necessarily
+  `"excluded"`; `"included"` and `"unknown"` are accepted only in
+  `mode: "live"`.
+- Everything else (profile, theme, period, days, metrics, languages) does not
+  change.
+- The renderer rejects any `schemaVersion` other than 2. `RendererData::fromDemo`
+  also emits v2 so that there is a single contract.
 
-`RendererData` gana `fromLive(Configuration, LiveSnapshot): array`. Ambas
-fábricas comparten el ensamblado común.
+`RendererData` gains `fromLive(Configuration, LiveSnapshot): array`. Both
+factories share the common assembly.
 
-### 5.8 Estructura de código
+### 5.8 Code structure
 
-Nuevo espacio `src/GitHub/`:
+New namespace `src/GitHub/`:
 
-- `GraphQlClient`: envío de consultas, cabeceras, reintentos, mapeo de errores.
-- `GitHubApiException` (extiende `RuntimeException`): única excepción pública
-  del cliente, con un `kind` (auth, rateLimit, notFound, transport, response).
-- `ContributionsQuery`: texto de la consulta A y parseo de su respuesta a
-  `ContributionCalendar` + contadores.
-- `RepositoriesQuery`: texto de la consulta B, paginación y parseo a la lista de
-  repositorios que entiende `LanguageRanking`.
-- `LiveStatistics`: orquesta ambas consultas y devuelve `LiveSnapshot`.
+- `GraphQlClient`: sending queries, headers, retries, error mapping.
+- `GitHubApiException` (extends `RuntimeException`): the client's only public
+  exception, with a `kind` (auth, rateLimit, notFound, transport, response).
+- `ContributionsQuery`: text of query A and parsing of its response into
+  `ContributionCalendar` + counters.
+- `RepositoriesQuery`: text of query B, pagination and parsing into the
+  repository list that `LanguageRanking` understands.
+- `LiveStatistics`: orchestrates both queries and returns `LiveSnapshot`.
 
-Nuevo en `src/Data/`: `LiveSnapshot` (readonly: login, calendar, pullRequests,
+New in `src/Data/`: `LiveSnapshot` (readonly: login, calendar, pullRequests,
 codeReviews, restrictedContributions, hasRestricted, languages,
-repositoriesScanned, generatedAt) y `Period` (cálculo del período móvil a
-partir de un `DateTimeImmutable` inyectable, para pruebas deterministas).
+repositoriesScanned, generatedAt) and `Period` (computation of the rolling
+period from an injectable `DateTimeImmutable`, for deterministic tests).
 
-Nuevo en `src/Config/`: `Environment` (carga opcional de `.env`, lectura y
-validación de `GITHUB_TOKEN`).
+New in `src/Config/`: `Environment` (optional `.env` loading, reading and
+validation of `GITHUB_TOKEN`).
 
-`src/Cli/Arguments` y `Application` aprenden `--live`. `Application` construye
-el cliente real solo en modo live.
+`src/Cli/Arguments` and `Application` learn `--live`. `Application` builds the
+real client only in live mode.
 
-## 6. Pruebas
+## 6. Tests
 
-Todo determinista salvo la prueba de integración marcada.
+Everything is deterministic except the integration test marked as such.
 
 ### PHP (`tests/php/`)
 
-- `GitHub/GraphQlClientTest`: cabecera Bearer presente, `User-Agent`, 401 →
-  excepción `auth`, 403/429 con rate limit → `rateLimit` con `resetAt`, 5xx →
-  reintenta y luego falla, 4xx no reintenta, `errors[]` con `data` → falla,
-  cuerpo no JSON → falla, y **ningún mensaje de excepción contiene el token**.
-- `GitHub/ContributionsQueryTest`: semanas con días fuera de rango se filtran,
-  días faltantes → error, `totalContributions` discordante → error, mapeo de
-  contadores y de `restricted*`, `user: null` → notFound, login distinto →
+- `GitHub/GraphQlClientTest`: Bearer header present, `User-Agent`, 401 →
+  `auth` exception, 403/429 with rate limit → `rateLimit` with `resetAt`, 5xx →
+  retries and then fails, 4xx does not retry, `errors[]` with `data` → fails,
+  non-JSON body → fails, and **no exception message contains the token**.
+- `GitHub/ContributionsQueryTest`: weeks with out-of-range days are filtered,
+  missing days → error, mismatched `totalContributions` → error, mapping of
+  counters and of `restricted*`, `user: null` → notFound, different login →
   error.
-- `GitHub/RepositoriesQueryTest`: paginación de 3 páginas, tope de páginas,
-  repos archivados/privados/forks descartados, lenguajes secundarios contados.
-- `GitHub/LiveStatisticsTest`: composición completa con `MockHttpClient` y
-  respuestas sintéticas → `LiveSnapshot` esperado.
-- `Data/PeriodTest`: período móvil para una fecha normal, para 29 de febrero,
-  para 1 de enero; siempre UTC; 365 o 366 días.
-- `Data/RendererDataLiveTest`: `fromLive` produce el contrato v2 con el orden
-  de claves, los tres estados de `privateContributions` a partir de respuestas
-  sintéticas (incluido el caso aritmético sin recuento restringido), `source`
-  relleno; `fromDemo` emite v2 con `source: null` y `"excluded"`.
-- `Config/EnvironmentTest`: `.env` se carga, el entorno del proceso tiene
-  prioridad, token vacío o con espacios → error, modo demo no lee `.env`.
-- `Cli/ArgumentsTest`: `--live`, exclusividad con `--demo`, ninguno → error.
-- `Render/NodeExporterTest`: el entorno pasado al proceso hijo no contiene
-  `GITHUB_TOKEN` ni variables con `TOKEN`/`SECRET`/`PASSWORD`.
-- `GitHub/RepositoriesQueryTest` (añadido): un lenguaje con `color: null`
-  recibe el gris neutro y se cuenta igual.
-- `Integration/GitHubLiveTest`: se omite salvo que existan `GITHUB_TOKEN` y
-  `GIT_CONSTELLATION_LOGIN` en el entorno. Comprueba calendario completo,
-  coherencia de totales, rate limit > 0. No asserta cifras concretas.
+- `GitHub/RepositoriesQueryTest`: pagination over 3 pages, page cap,
+  archived/private/fork repos discarded, secondary languages counted.
+- `GitHub/LiveStatisticsTest`: full composition with `MockHttpClient` and
+  synthetic responses → expected `LiveSnapshot`.
+- `Data/PeriodTest`: rolling period for a normal date, for 29 February, for 1
+  January; always UTC; 365 or 366 days.
+- `Data/RendererDataLiveTest`: `fromLive` produces the v2 contract with the key
+  order, the three `privateContributions` states from synthetic responses
+  (including the arithmetic case with no restricted count), `source` populated;
+  `fromDemo` emits v2 with `source: null` and `"excluded"`.
+- `Config/EnvironmentTest`: `.env` is loaded, the process environment takes
+  priority, empty token or token with whitespace → error, demo mode does not
+  read `.env`.
+- `Cli/ArgumentsTest`: `--live`, exclusivity with `--demo`, neither → error.
+- `Render/NodeExporterTest`: the environment passed to the child process
+  contains neither `GITHUB_TOKEN` nor variables with `TOKEN`/`SECRET`/`PASSWORD`.
+- `GitHub/RepositoriesQueryTest` (added): a language with `color: null` gets the
+  neutral gray and is counted all the same.
+- `Integration/GitHubLiveTest`: skipped unless `GITHUB_TOKEN` and
+  `GIT_CONSTELLATION_LOGIN` exist in the environment. Checks the full calendar,
+  consistency of totals, rate limit > 0. Does not assert specific figures.
 
-Las respuestas simuladas viven en `tests/php/fixtures/github/` y son
-sintéticas, no grabadas de la cuenta del usuario.
+The mocked responses live in `tests/php/fixtures/github/` and are synthetic, not
+recorded from the project owner's account.
 
 ### TypeScript (`tests/ts/`)
 
-- `validation.test.ts`: acepta `mode: "live"` con los tres estados de
-  `privateContributions`, rechaza `included`/`unknown` en demo, exige
-  `schemaVersion: 2`, valida `generatedAt` y `source`.
-- `render.test.ts`: sin insignia DEMO en live, con insignia en demo, los tres
-  subtítulos según estado, `title` de las tarjetas PR/Reviews, tarjetas sin
-  descripciones secundarias, cabecera sin tagline.
+- `validation.test.ts`: accepts `mode: "live"` with the three
+  `privateContributions` states, rejects `included`/`unknown` in demo, requires
+  `schemaVersion: 2`, validates `generatedAt` and `source`.
+- `render.test.ts`: no DEMO badge in live, with badge in demo, the three
+  subtitles by state, `title` of the PR/Reviews cards, cards without secondary
+  descriptions, header without tagline.
 
 ### Visual (`tests/visual/`)
 
-- Se actualizan los snapshots existentes una sola vez por los cambios de la
-  sección 7 (acción deliberada, se informa).
-- Nueva prueba: fixture en modo live, sin insignia, con subtítulo de
-  contribuciones privadas, a 1920 px y a 830 px.
+- The existing snapshots are updated once for the changes in section 7
+  (deliberate action, reported).
+- New test: fixture in live mode, no badge, with private-contributions subtitle,
+  at 1920 px and at 830 px.
 
-### Spike previo (antes de implementar)
+### Prior spike (before implementing)
 
-Un script desechable de solo lectura, fuera de `src/`, que lee `GITHUB_TOKEN`
-de `.env`, lanza la consulta A ampliada con los cinco totales visibles contra
-la cuenta del usuario y muestra únicamente los contadores agregados (nunca el
-token ni nombres de repositorio). Su resultado fija la regla de
-`privateContributionsIncluded` de la sección 5.6 y se anota en `docs/phase-2.md`.
-El script se borra al terminar; nada de lo que produzca se conserva en el
-repositorio.
+A disposable, read-only script, outside `src/`, that reads `GITHUB_TOKEN` from
+`.env`, runs the extended query A with the five visible totals against the
+project owner's account and shows only the aggregate counters (never the token
+nor repository names). Its result fixes the `privateContributionsIncluded` rule
+of section 5.6 and is recorded in `docs/phase-2.md`. The script is deleted when
+done; nothing it produces is kept in the repository.
 
-### Verificación del criterio de aceptación 3
+### Verification of acceptance criterion 3
 
-"Verificado" significa, en este orden:
+"Verified" means, in this order:
 
-1. Las cifras del resumen de la CLI coinciden exactamente con una consulta
-   GraphQL directa (`curl`) con el mismo token, mismo login y mismo `from`/`to`.
-   Esto es reproducible y es la comprobación principal.
-2. Comprobación puntual de al menos cinco fechas concretas: el `count` de
-   `days[]` coincide con el tooltip diario del gráfico de contribuciones del
-   perfil público. Los recuentos diarios del perfil son exactos por fecha.
-3. El total anual del perfil ("contributions in the last year") se compara solo
-   como orden de magnitud: GitHub usa su propia ventana de semanas completas,
-   distinta de los 365 días móviles de esta herramienta, así que no tiene que
-   coincidir y la documentación lo dice.
-4. PR y reviews se comparan con los totales GraphQL (punto 1), no con la
-   página de perfil, y la documentación deja claro que excluyen la actividad
-   privada no visible para el token.
+1. The figures in the CLI summary match exactly a direct GraphQL query (`curl`)
+   with the same token, same login and same `from`/`to`. This is reproducible
+   and is the main check.
+2. A spot check of at least five specific dates: the `count` in `days[]` matches
+   the daily tooltip of the public profile's contribution graph. The profile's
+   daily counts are exact per date.
+3. The profile's annual total ("contributions in the last year") is compared
+   only as an order of magnitude: GitHub uses its own window of full weeks,
+   different from this tool's rolling 365 days, so it does not have to match and
+   the documentation says so.
+4. PRs and reviews are compared with the GraphQL totals (point 1), not with the
+   profile page, and the documentation makes clear that they exclude private
+   activity not visible to the token.
 
-El token estará en `.env` en la máquina del usuario, que es donde se ejecuta
-esta sesión; el agente principal realiza la ejecución real y la comparación, y
-el usuario confirma la imagen. Se documenta en `docs/phase-2.md`.
+The token will be in `.env` on the project owner's machine, which is where this
+session runs; the main agent performs the real run and the comparison, and the
+project owner confirms the image. It is documented in `docs/phase-2.md`.
 
-## 7. Ajustes visuales aprobados
+## 7. Approved visual adjustments
 
-Únicos cambios de plantilla y CSS permitidos. Ningún cambio de paleta,
-composición, constelación ni tarjetas más allá de lo listado.
+The only template and CSS changes allowed. No change to palette, composition,
+constellation or cards beyond what is listed.
 
-1. **Tarjetas inferiores:** se eliminan las líneas secundarias ("Created ·
-   simulated", "Submitted · simulated", "In the example period", "Consecutive
-   active days") en ambos modos. Queda número y nombre. Para valor `null` se
-   mantiene "—" con "Not available". *(usuario; aplicar en ambos modos es
-   decisión del diseño)*
-2. **Cabecera:** se elimina la línea "ACTIVITY • CODE • CONTRIBUTIONS". A 830 px
-   es ilegible. Se conserva "DEVELOPER CONSTELLATION". *(usuario pidió
-   valorarlo; diseño decide eliminarlo)*
-3. **Top Languages:** sin porcentajes, como está. Se conserva la nota "By public
-   repository count" y el README explica el criterio: número de repositorios
-   públicos propios, no archivados y no forks en los que aparece el lenguaje,
-   incluidos lenguajes secundarios; empate por nombre; top 5. *(usuario)*
-4. **Insignia DEMO / SIMULATED DATA:** solo en `mode: "demo"`. En live no se
-   renderiza. Los textos de accesibilidad (`<title>`, `aria-label`, párrafo
-   `sr-only`) y el texto de estado vacío de lenguajes dejan de decir
-   "simulated"/"example" en live. *(usuario)*
+1. **Bottom cards:** the secondary lines ("Created · simulated", "Submitted ·
+   simulated", "In the example period", "Consecutive active days") are removed
+   in both modes. What remains is the number and the name. For a `null` value,
+   "—" with "Not available" is kept. *(project owner; applying it in both modes
+   is a design decision)*
+2. **Header:** the line "ACTIVITY • CODE • CONTRIBUTIONS" is removed. At 830 px
+   it is illegible. "DEVELOPER CONSTELLATION" is kept. *(project owner asked to
+   evaluate it; design decides to remove it)*
+3. **Top Languages:** no percentages, as it is. The note "By public repository
+   count" is kept and the README explains the criterion: the number of the
+   user's own public, non-archived, non-fork repositories in which the language
+   appears, including secondary languages; ties broken by name; top 5.
+   *(project owner)*
+4. **DEMO / SIMULATED DATA badge:** only in `mode: "demo"`. In live it is not
+   rendered. The accessibility texts (`<title>`, `aria-label`, `sr-only`
+   paragraph) and the languages empty-state text stop saying
+   "simulated"/"example" in live. *(project owner)*
 
-El espacio que dejan la tagline y las descripciones no se rellena con nada
-nuevo; el builder ajusta el CSS lo mínimo para que las tarjetas no queden con
-hueco visible.
+The space left by the tagline and the descriptions is not filled with anything
+new; the builder adjusts the CSS minimally so the cards are not left with a
+visible gap.
 
-## 8. Documentación
+## 8. Documentation
 
-- `README.md`: nueva sección "Modo live" (crear token clásico con solo
-  `read:user`, colocar en `.env`, copiar `config/live.example.json` a
-  `config/local.json`, ejecutar, leer el resumen); tabla de qué métricas
-  incluyen actividad privada; criterio de lenguajes; período móvil; nota de
-  tokens de grano fino no verificados; comportamiento ante fallos (nunca
-  fallback).
-- `docs/phase-2.md`: contrato v2, consultas GraphQL, decisiones de privacidad,
-  procedimiento de verificación manual, limitaciones conocidas.
-- `.env.example` y `config/live.example.json` actualizados.
-- `renderer/README.md`: contrato v2 y modos.
-- `CONTINUITY.md`: actualizar al cerrar la fase.
+- `README.md`: new section "Live mode" (create a classic token with only
+  `read:user`, place it in `.env`, copy `config/live.example.json` to
+  `config/local.json`, run, read the summary); table of which metrics include
+  private activity; language criterion; rolling period; note on unverified
+  fine-grained tokens; behavior on failure (never a fallback).
+- `docs/phase-2.md`: v2 contract, GraphQL queries, privacy decisions, manual
+  verification procedure, known limitations.
+- `.env.example` and `config/live.example.json` updated.
+- `renderer/README.md`: v2 contract and modes.
+- `CONTINUITY.md`: update when closing the phase.
 
-## 9. Criterios de aceptación (del usuario)
+## 9. Acceptance criteria (from the project owner)
 
-1. Imagen generada con estadísticas reales de la cuenta del usuario.
-2. Constelación basada en el calendario real, sin aleatoriedad.
-3. Métricas verificadas frente a GitHub (procedimiento de la sección 6).
-4. Pruebas de integración y de procesamiento de estadísticas.
-5. Captura real de Playwright del resultado final.
-6. Documentación de limitaciones de acceso a información privada.
+1. Image generated with real statistics from the project owner's account.
+2. Constellation based on the real calendar, with no randomness.
+3. Metrics verified against GitHub (procedure in section 6).
+4. Integration tests and statistics-processing tests.
+5. Real Playwright capture of the final result.
+6. Documentation of the limitations of access to private information.
 
-No se inicia la Fase 3.
+Phase 3 is not started.
 
-## 10. Lo que queda al constructor
+## 10. Left to the builder
 
-- Nombres exactos de métodos, forma de las excepciones internas, formato del
-  texto de ayuda.
-- Cómo compartir el ensamblado común entre `fromDemo` y `fromLive`.
-- Detalle del backoff de reintentos (dentro de "2 reintentos, espera
-  creciente, solo transporte/5xx").
-- Ajuste CSS mínimo tras quitar tagline y descripciones.
-- Organización de los fixtures sintéticos de prueba.
+- Exact method names, shape of the internal exceptions, format of the help text.
+- How to share the common assembly between `fromDemo` and `fromLive`.
+- Detail of the retry backoff (within "2 retries, increasing delay, transport/5xx
+  only").
+- Minimal CSS adjustment after removing the tagline and descriptions.
+- Organization of the synthetic test fixtures.
