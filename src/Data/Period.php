@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+namespace GitConstellation\Data;
+
+use DateInterval;
+use DateTimeImmutable;
+use DateTimeZone;
+
+/** An inclusive range of UTC calendar days. */
+final readonly class Period
+{
+    private function __construct(
+        public string $start,
+        public string $end,
+    ) {}
+
+    public static function trailingYear(DateTimeImmutable $now): self
+    {
+        $utc = new DateTimeZone('UTC');
+        $end = new DateTimeImmutable($now->setTimezone($utc)->format('Y-m-d'), $utc);
+        // PHP overflows sub('P1Y') on a leap day to March 1, so a period ending after Feb 29 can hold 366 days.
+        $start = $end->sub(new DateInterval('P1Y'))->add(new DateInterval('P1D'));
+
+        return new self($start->format('Y-m-d'), $end->format('Y-m-d'));
+    }
+
+    public function fromDateTime(): string
+    {
+        return "{$this->start}T00:00:00Z";
+    }
+
+    public function toDateTime(): string
+    {
+        return "{$this->end}T23:59:59Z";
+    }
+
+    public function contains(string $date): bool
+    {
+        return $date >= $this->start && $date <= $this->end;
+    }
+
+    public function dayCount(): int
+    {
+        $utc = new DateTimeZone('UTC');
+
+        return (new DateTimeImmutable($this->start, $utc))
+            ->diff(new DateTimeImmutable($this->end, $utc))
+            ->days + 1;
+    }
+}
