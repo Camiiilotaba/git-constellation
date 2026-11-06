@@ -1,0 +1,44 @@
+{
+  "data": {
+    "user": {
+      "repositories": {
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": null
+        },
+        "nodes": [
+          {
+            "isArchived": false,
+            "isFork": false,
+            "visibility": "PUBLIC",
+            "languages": {
+              "nodes": [
+                {
+                  "name": "JavaScript",
+                  "color": "#f1e05a"
+                },
+                {
+                  "name": "Rust",
+                  "color": "#dea584"
+                }
+              ]
+            }
+          },
+          {
+            "isArchived": false,
+            "isFork": true,
+            "visibility": "PUBLIC",
+            "languages": {
+              "nodes": [
+                {
+                  "name": "Go",
+                  "color": "#00ADD8"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "data": {
+    "user": {
+      "repositories": {
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "cursor-page-1"
+        },
+        "nodes": [
+          {
+            "isArchived": false,
+            "isFork": false,
+            "visibility": "PUBLIC",
+            "languages": {
+              "nodes": [
+                {
+                  "name": "PHP",
+                  "color": "#4F5D95"
+                },
+                {
+                  "name": "JavaScript",
+                  "color": "#f1e05a"
+                }
+              ]
+            }
+          },
+          {
+            "isArchived": false,
+            "isFork": false,
+            "visibility": "PUBLIC",
+            "languages": {
+              "nodes": [
+                {
+                  "name": "PHP",
+                  "color": "#4F5D95"
+                }
+              ]
+            }
+          },
+          {
+            "isArchived": false,
+            "isFork": false,
+            "visibility": "PUBLIC",
+            "languages": {
+              "nodes": []
+            }
+          }
+        ]
+      }
+    }
+  }
+}
