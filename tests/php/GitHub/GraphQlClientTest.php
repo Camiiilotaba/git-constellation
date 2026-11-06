@@ -138,6 +138,46 @@ final class GraphQlClientTest extends TestCase
         self::assertSame(3, $this->requests);
     }
 
+    public function testConnectionFailuresRetryThenFail(): void
+    {
+        $refused = static fn (): MockResponse => new MockResponse('', ['error' => 'Connection refused']);
+        $client = $this->client([$refused(), $refused(), $refused()]);
+
+        $exception = $this->failure(fn () => $client->query('q'));
+
+        self::assertSame(GitHubErrorKind::Transport, $exception->kind);
+        self::assertSame([1, 2], $this->sleeps);
+        self::assertSame(3, $this->requests);
+    }
+
+    public function testBodyReadFailuresRetryThenFail(): void
+    {
+        $truncated = static fn (): MockResponse => new MockResponse('{"data"', [
+            'http_code' => 200,
+            'response_headers' => ['content-length: 1000'],
+        ]);
+        $client = $this->client([$truncated(), $truncated(), $truncated()]);
+
+        $exception = $this->failure(fn () => $client->query('q'));
+
+        self::assertSame(GitHubErrorKind::Transport, $exception->kind);
+        self::assertSame([1, 2], $this->sleeps);
+        self::assertSame(3, $this->requests);
+    }
+
+    public function testScopesResetWhenLaterRequestFails(): void
+    {
+        $client = $this->client([
+            $this->json('{"data":{}}', 200, ['x-oauth-scopes' => 'repo']),
+            $this->json('{}', 422),
+        ]);
+        $client->query('q');
+
+        $this->failure(fn () => $client->query('q'));
+
+        self::assertSame([], $client->lastScopes());
+    }
+
     public function testClientErrorsDoNotRetry(): void
     {
         $client = $this->client([$this->json('{"message":"nope"}', 422)]);

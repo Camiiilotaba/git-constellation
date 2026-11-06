@@ -8,7 +8,6 @@ use Closure;
 use JsonException;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
 
 final class GraphQlClient
 {
@@ -39,11 +38,11 @@ final class GraphQlClient
      */
     public function query(string $query, array $variables = []): array
     {
-        $response = $this->sendWithRetries($query, $variables);
-        $this->lastScopes = $this->parseScopes($response->getHeaders(false)['x-oauth-scopes'][0] ?? '');
+        ['status' => $status, 'headers' => $headers, 'body' => $body] = $this->sendWithRetries($query, $variables);
+        $this->lastScopes = $this->parseScopes($headers['x-oauth-scopes'][0] ?? '');
+        $this->assertNotClientError($headers, $status);
 
-        $body = $response->getContent(false);
-        $declaredLength = (int) ($response->getHeaders(false)['content-length'][0] ?? 0);
+        $declaredLength = (int) ($headers['content-length'][0] ?? 0);
         if ($declaredLength > self::MAX_BODY_BYTES || strlen($body) > self::MAX_BODY_BYTES) {
             throw new GitHubApiException(GitHubErrorKind::Response, 'GitHub response is larger than 5 MB.');
         }
@@ -79,8 +78,11 @@ final class GraphQlClient
         return $this->lastScopes;
     }
 
-    /** @param array<string, mixed> $variables */
-    private function sendWithRetries(string $query, array $variables): ResponseInterface
+    /**
+     * @param array<string, mixed> $variables
+     * @return array{status: int, headers: array<string, list<string>>, body: string}
+     */
+    private function sendWithRetries(string $query, array $variables): array
     {
         $attempt = 0;
         while (true) {
@@ -96,17 +98,17 @@ final class GraphQlClient
                     'max_duration' => self::MAX_DURATION_SECONDS,
                 ]);
                 $status = $response->getStatusCode();
+                // The body is read inside the try: mid-download failures are transport failures too.
+                $headers = $response->getHeaders(false);
+                $body = $response->getContent(false);
                 $failure = null;
             } catch (TransportExceptionInterface $exception) {
-                $response = null;
                 $status = 0;
                 $failure = $exception;
             }
 
-            if ($response !== null && $status < 500) {
-                $this->assertNotClientError($response, $status);
-
-                return $response;
+            if ($failure === null && $status < 500) {
+                return ['status' => $status, 'headers' => $headers, 'body' => $body];
             }
 
             // Only transient failures are retried; a 4xx would fail identically every time.
@@ -125,7 +127,8 @@ final class GraphQlClient
         }
     }
 
-    private function assertNotClientError(ResponseInterface $response, int $status): void
+    /** @param array<string, list<string>> $headers */
+    private function assertNotClientError(array $headers, int $status): void
     {
         if ($status < 400) {
             return;
@@ -135,7 +138,6 @@ final class GraphQlClient
             throw new GitHubApiException(GitHubErrorKind::Auth, 'GitHub rejected the token (HTTP 401). Check GITHUB_TOKEN and the read:user scope.');
         }
 
-        $headers = $response->getHeaders(false);
         $exhausted = ($headers['x-ratelimit-remaining'][0] ?? null) === '0';
         if ($status === 429 || ($status === 403 && $exhausted)) {
             throw new GitHubApiException(GitHubErrorKind::RateLimit, $this->rateLimitMessage($headers));
