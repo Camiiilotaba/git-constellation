@@ -499,3 +499,22 @@ Phase 3 is not started.
   only").
 - Minimal CSS adjustment after removing the tagline and descriptions.
 - Organization of the synthetic test fixtures.
+
+## Post-spike amendments (2026-11-06)
+
+A read-only spike against the owner's account (classic `read:user` token) changed four decisions. The earlier sections are left as written.
+
+### Spike facts
+
+1. `contributionsCollection(from, to)` returned exactly the requested range: 365 days from `from` to `to`, no padded week days. `contributionCalendar.totalContributions` equalled the sum of the returned days.
+2. A 366-day span (`2023-03-02T00:00:00Z` to `2024-03-01T23:59:59Z`) was accepted and returned 366 days. A span slightly longer than one year was also accepted without error.
+3. `viewer { contributionsCollection }` and `user(login: <own login>) { contributionsCollection }` returned identical totals.
+4. For the token owner's own account, `restrictedContributionsCount` was 0 and `hasAnyRestrictedContributions` was false, yet the totals included private activity (730 commits, 246 pull requests and 270 reviews in total, against 43 commits in 2 public repositories and no public PRs or reviews in the per-repository breakdown). When the viewer is the account owner, GitHub folds private activity into the normal totals as counts only. The restricted count is the signal only when the viewer is someone else.
+5. The calendar total (1253) exceeded the sum of the five visible totals (1252) by 1; the cause is unknown. The `excluded` rule therefore stays strict (equality required).
+
+### Decisions
+
+1. **Own account is an explicit "included" signal.** The contributions query also reads `viewer { login }`. `PrivateContributions::determine` takes a fifth parameter `ownAccount` (viewer login equals the requested login, case-insensitively) and returns `included` when it is true. `source.ownAccount` is added to the data contract and `own account: yes|no` to the CLI summary.
+2. **The subtitle shows only the period.** The privacy phrase and the lock icon are removed. The state is exposed in `data.json`, the CLI summary and a screen-reader sentence.
+3. **Languages come from more repositories.** Query B uses `ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]`: public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership.
+4. **The spike and the decisions are documented** in `docs/phase-2.md`, `README.md` (including the two usage scenarios) and `renderer/README.md`.

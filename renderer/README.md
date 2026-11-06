@@ -44,12 +44,11 @@ filters credential-like variables from this process's environment.
 | --- | --- | --- |
 | Page title | `<name> · Git Constellation · Demo` | `<name> · Git Constellation` |
 | Brand badge | `DEMO / SIMULATED DATA` | none |
-| Contribution subtitle | `public activity only` | `private counts anonymized` (`included`), `public activity only` (`excluded`), `visible activity only` (`unknown`) |
-| Contribution icon | calendar | lock when `included`, otherwise calendar |
+| Contribution subtitle | compact period, calendar icon | compact period, calendar icon (the full dates stay in the `title`) |
 | PR / review tooltip | `Simulated` | `Visible to the token; may exclude private activity` |
 | Empty chart text | `No contributions in this example period` | `No contributions in this period` |
 | Empty languages text | `No eligible public repositories in this example.` | `No eligible public repositories.` |
-| Accessible description | states it is a demonstration with simulated data | states live statistics, the generation time and that PR and review counts may exclude private activity |
+| Accessible description | states it is a demonstration with simulated data | states live statistics, the generation time, one privacy sentence (`included`: Totals include private activity as anonymized counts. `excluded`: Totals cover public activity only. `unknown`: Totals cover activity visible to the token.) and that PR and review counts may exclude private activity |
 
 The language panel always says `By public repository count`.
 

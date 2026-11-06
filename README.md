@@ -123,7 +123,7 @@ LIVE — GitHub statistics for <login>
 Period (UTC): <start> .. <end>
 Generated at: <UTC timestamp>
 Contributions (calendar): <n>
-Private contributions: <included|excluded|unknown> (restricted count: <n>)
+Private contributions: <included|excluded|unknown> (restricted count: <n>, own account: yes|no)
 Pull Requests (visible to token): <n>
 Code Reviews (visible to token): <n>
 Active Days: <n>
@@ -136,25 +136,31 @@ Rate limit remaining: <n>
 
 The period ends today in UTC and starts one year earlier plus one day: 365 days, or 366 when it ends after February 29 and starts before it (a period ending on February 29 itself has 365). Check `Token scopes` to confirm the token has only `read:user`. [docs/phase-2.md](docs/phase-2.md) explains how to verify the numbers against GitHub.
 
+### Scenarios
+
+**(a) Your own account.** Create a classic token with only `read:user`, set `username` in `config/local.json` to your login and run `php bin/constellation --live`. The totals include your private activity as counts only, and no repository names ever appear. The summary shows `own account: yes` and `Private contributions: included`.
+
+**(b) Someone else's public account.** Use the same token and set `username` to that person's login. You get their public activity plus anonymized private counts if they share them on their profile. Pull requests and reviews are public only. The summary shows `own account: no`.
+
 ### What includes private activity
 
-| Item | Includes private activity |
-| --- | --- |
-| Daily calendar, total contributions, active days, longest streak | Yes, as anonymized counts, when the profile owner shares private contributions |
-| Pull Requests and Code Reviews | Only activity visible to the token; may exclude private activity |
-| Languages | No. Public, owned, non-fork, non-archived repositories only; organization repositories are excluded in this version |
-
-The image states what it knows in the subtitle next to the period:
-
-| `Private contributions` | Subtitle | Meaning |
+| Item | Your own account | Another account |
 | --- | --- | --- |
-| `included` | private counts anonymized | GitHub explicitly reported restricted (private) contributions |
-| `excluded` | public activity only | No restricted signal and the totals add up to the visible activity |
-| `unknown` | visible activity only | Neither could be established; the figure is not claimed to be complete |
+| Daily calendar, total contributions, active days, longest streak | Include private activity as counts only | Include anonymized private counts only if that person shares them |
+| Pull Requests and Code Reviews | Include private activity as counts | Public only |
+| Languages | No. Public, non-fork, non-archived repositories you own, collaborate on, or can access through an organization membership | Same |
+
+The image subtitle shows only the period. The privacy state is in `build/data.json`, in the summary (`Private contributions`) and in the screen-reader text:
+
+| `Private contributions` | Meaning |
+| --- | --- |
+| `included` | Your own account, or GitHub reported restricted (private) contributions |
+| `excluded` | No restricted signal and the totals add up to the visible activity |
+| `unknown` | Neither could be established; the figure is not claimed to be complete |
 
 ### Language criterion
 
-The ranking counts the eligible public repositories in which each language appears, secondary languages included. Ties are broken by name and the top 5 are shown. There are no percentages. It measures presence in repositories, not experience or proficiency.
+The ranking counts the public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which each language appears (secondary languages included). Ties are broken by name and the top 5 are shown. There are no percentages. It measures presence in repositories, not experience or proficiency.
 
 ### Failure behaviour
 
@@ -162,7 +168,7 @@ Any fetch failure (authentication, rate limit, network, GraphQL errors, malforme
 
 ## Quick Start (planned, Phase 3)
 
-A reusable GitHub Actions workflow is planned. Nothing of it exists yet. The token lives in an environment variable and the configuration in a JSON file so that it can be driven from Actions later.
+A reusable GitHub Actions workflow is planned. Nothing of it exists yet. It will be referenced by `@v1`-style major tags, `@latest`, or exact `@vX.Y.Z` tags. The token lives in an environment variable and the configuration in a JSON file so that it can be driven from Actions later.
 
 ## Embed the image in a profile
 
@@ -184,7 +190,7 @@ The visual direction follows the reference: a dark space background, cyan and te
 
 ## Privacy and GitHub status
 
-Demo mode makes no GitHub calls and needs no credentials. Live mode reads only the contribution calendar, aggregate totals and, for the language ranking, language names and colours of public repositories. It never reads code, and it never exposes repository names, branches, commit messages or pull request titles. Private contributions appear only as the anonymized counts GitHub itself includes in the calendar, and only when the profile owner shares them. Pull request and review figures count what the token can see and may omit private activity.
+Demo mode makes no GitHub calls and needs no credentials. Live mode reads only the contribution calendar, aggregate totals and, for the language ranking, language names and colours of public repositories. It never reads code, and it never exposes repository names, branches, commit messages or pull request titles. For your own account, private activity is folded into the totals as counts only. For another account, private contributions appear only as the anonymized counts GitHub includes in the calendar, and only when that person shares them; pull request and review figures are public only.
 
 Never put a token in the repository, in `config/*.json`, in command arguments or in generated files. `.env` and `config/local.json` are gitignored; `.env.example` is the only committed template and contains no token.
 

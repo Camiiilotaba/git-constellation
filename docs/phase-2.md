@@ -44,6 +44,7 @@ Live example (`days` is shortened here; the real array contains every day of the
     "provider": "github",
     "login": "octo-sample",
     "restrictedContributions": 7,
+    "ownAccount": false,
     "visibleTotals": {
       "commits": 900,
       "issues": 12,
@@ -78,6 +79,7 @@ Both queries are defined as constants in the PHP source and are reproduced verba
 ```graphql
 query($login: String!, $from: DateTime!, $to: DateTime!) {
   rateLimit { remaining resetAt }
+  viewer { login }
   user(login: $login) {
     login
     contributionsCollection(from: $from, to: $to) {
@@ -99,7 +101,9 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 
 Variables: `login`, `from` (`<period start>T00:00:00Z`) and `to` (`<period end>T23:59:59Z`).
 
-GitHub pads the calendar to whole weeks, so it returns days outside the period. The client keeps only the days inside the period, then requires every date of the period to be present exactly once. The returned login must match the requested one case-insensitively.
+`viewer.login` identifies the token owner. When it equals the requested login (case-insensitively), the run is for the token owner's own account (`source.ownAccount`).
+
+The client keeps only the days inside the period (it tolerates padded week days, although the spike saw none), then requires every date of the period to be present exactly once. The returned login must match the requested one case-insensitively.
 
 ### Query B: repositories (`src/GitHub/RepositoriesQuery.php`)
 
@@ -108,7 +112,7 @@ query($login: String!, $after: String) {
   user(login: $login) {
     repositories(
       first: 100, after: $after,
-      ownerAffiliations: [OWNER], privacy: PUBLIC, isFork: false,
+      ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], privacy: PUBLIC, isFork: false,
       orderBy: { field: NAME, direction: ASC }
     ) {
       pageInfo { hasNextPage endCursor }
@@ -138,12 +142,12 @@ It pages 100 repositories at a time, up to 20 pages. A user with more than 2000 
 
 ## What includes private activity
 
-| Item | Includes private activity |
-| --- | --- |
-| Daily calendar, total contributions, active days, longest streak | Yes, as anonymized counts, when the profile owner shares private contributions on their profile |
-| Pull Requests | Only activity visible to the token; may exclude private activity |
-| Code Reviews | Only activity visible to the token; may exclude private activity |
-| Languages | No. Public, owned, non-fork, non-archived repositories only; organization repositories are excluded in this version |
+| Item | Token owner's own account | Another account |
+| --- | --- | --- |
+| Daily calendar, total contributions, active days, longest streak | Include private activity as counts only | Include anonymized private counts only if that person shares them (restricted count) |
+| Pull Requests | Include private activity as counts | Public only |
+| Code Reviews | Include private activity as counts | Public only |
+| Languages | No. Public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership | Same |
 
 The tool never reads private code, repository names, branches, commit messages or pull request titles.
 
@@ -151,22 +155,30 @@ The tool never reads private code, repository names, branches, commit messages o
 
 `privateContributions` has three values, decided by `PrivateContributions::determine`:
 
-| State | Rule | Subtitle in the image |
+| State | Rule | Screen-reader sentence |
 | --- | --- | --- |
-| `included` | `restrictedContributionsCount > 0` or `hasAnyRestrictedContributions` is true | `private counts anonymized` |
-| `excluded` | No restricted signal and the in-period calendar total equals the sum of the five visible totals (commits, issues, pull requests, reviews, repositories) | `public activity only` |
-| `unknown` | Anything else | `visible activity only` |
+| `included` | `restrictedContributionsCount > 0`, or `hasAnyRestrictedContributions` is true, or the account is the token owner's own (`viewer.login` equals the requested login) | Totals include private activity as anonymized counts. |
+| `excluded` | None of the above and the in-period calendar total equals the sum of the five visible totals (commits, issues, pull requests, reviews, repositories) | Totals cover public activity only. |
+| `unknown` | Anything else | Totals cover activity visible to the token. |
 
-`included` is claimed only on an explicit GitHub signal. It is never inferred from arithmetic alone. Demo mode always renders `public activity only`.
+For the token owner's own account GitHub folds private activity into the normal totals and keeps the restricted count at 0 (spike fact 4), so the own-account signal is explicit. The restricted count is the signal only when the viewer is someone else. `excluded` stays strict: it requires equality.
+
+The image subtitle shows only the period. The state is exposed in `data.json` (`privateContributions`, `source.ownAccount`), in the CLI summary (`Private contributions: <state> (restricted count: <n>, own account: yes|no)`) and in the screen-reader text. Demo mode always states public activity only.
 
 ### Real-API check
 
-Result: pending (to be filled by the maintainer after the read-only spike).
+Result (2026-11-06), verified against the owner's account with a classic `read:user` token:
 
-`ContributionsQuery` accepts `contributionCalendar.totalContributions` if it equals either the sum of all returned days (padded days included) or the sum of the in-period days. The in-period sum is what feeds the `excluded`/`unknown` rule, since the five visible totals cover the same window. Checklist for the maintainer:
+1. `contributionsCollection(from, to)` returned exactly the requested range: 365 days from `from` to `to`, no padded week days. `contributionCalendar.totalContributions` equalled the sum of the returned days.
+2. A 366-day span (`2023-03-02T00:00:00Z` to `2024-03-01T23:59:59Z`) was accepted and returned 366 days. A span slightly longer than one year was also accepted without error.
+3. `viewer { contributionsCollection }` and `user(login: <own login>) { contributionsCollection }` returned identical totals.
+4. For the token owner's own account, `restrictedContributionsCount` was 0 and `hasAnyRestrictedContributions` was false, yet the totals included private activity: 730 commits, 246 pull requests and 270 reviews in total, while the per-repository breakdown (which only lists repositories the token can access) showed 43 commits in 2 public repositories and no public PRs or reviews. When the viewer is the account owner, GitHub folds private activity into the normal totals (as counts only, no repository data) instead of the restricted count. The restricted count is the signal only when the viewer is someone else.
+5. The calendar total (1253) exceeded the sum of the five visible totals (1252) by 1; the cause is unknown (a contribution type not covered by the five totals). The `excluded` rule therefore stays strict (equality required).
 
-- [ ] Record which of the two sums `totalContributions` equals.
-- [ ] Record whether a 366-day span (e.g. from 2027-03-02T00:00:00Z to 2028-03-01T23:59:59Z) is accepted by `contributionsCollection`.
+`ContributionsQuery` still accepts `totalContributions` if it equals either the sum of all returned days or the sum of the in-period days. The in-period sum feeds the `excluded`/`unknown` rule, since the five visible totals cover the same window. Checklist:
+
+- [x] Record which of the two sums `totalContributions` equals: the returned days, which are exactly the period (no padding).
+- [x] Record whether a 366-day span is accepted by `contributionsCollection`: yes (verified).
 
 ## Rolling period
 
@@ -176,9 +188,9 @@ This is not the window GitHub uses for the profile page, which is week-aligned. 
 
 ## Language criterion
 
-Each language is counted once per eligible repository in which it appears, secondary languages included. Languages are ordered by repository count descending, ties by name ascending, and the top 5 are kept. The image shows no percentages and no byte sizes. The ranking measures presence in repositories, not experience or proficiency. Languages without a GitHub colour use `#8b949e`.
+Each language is counted once per eligible repository in which it appears, secondary languages included. Languages are ordered by repository count descending, ties by name ascending, and the top 5 are kept. The criterion is the number of public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which the language appears. The image shows no percentages and no byte sizes. The ranking measures presence in repositories, not experience or proficiency. Languages without a GitHub colour use `#8b949e`.
 
-Eligible repositories are public, owned by the user, not forks and not archived. Query B already filters public, owned and non-fork repositories; the ranking additionally skips archived ones.
+Eligible repositories are public, not forks and not archived, and the user owns them, collaborates on them or can reach them through an organization membership. Query B filters affiliation, public and non-fork; the ranking additionally skips archived ones.
 
 ## Errors and no fallback
 
@@ -212,24 +224,24 @@ Run after `php bin/constellation --live --config=config/local.json`. Use the sam
    curl -s https://api.github.com/graphql \
      -H "Authorization: bearer $GITHUB_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"query":"query($login:String!,$from:DateTime!,$to:DateTime!){user(login:$login){contributionsCollection(from:$from,to:$to){contributionCalendar{totalContributions}totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount hasAnyRestrictedContributions}}}","variables":{"login":"YOUR_LOGIN","from":"2025-11-07T00:00:00Z","to":"2026-11-06T23:59:59Z"}}'
+     -d '{"query":"query($login:String!,$from:DateTime!,$to:DateTime!){viewer{login} user(login:$login){contributionsCollection(from:$from,to:$to){contributionCalendar{totalContributions}totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount hasAnyRestrictedContributions}}}","variables":{"login":"YOUR_LOGIN","from":"2025-11-07T00:00:00Z","to":"2026-11-06T23:59:59Z"}}'
    ```
 
-   The summary's `Contributions (calendar)` is the in-period sum of the daily counts. GitHub's `totalContributions` may equal that sum or the sum that includes the padded week days; the spike records which. The pull request and review totals, `restrictedContributionsCount` and the private state must match the summary exactly.
+   The summary's `Contributions (calendar)` is the in-period sum of the daily counts. GitHub's `totalContributions` equals that sum (the spike saw no padded days). The pull request and review totals, `restrictedContributionsCount` and the private state must match the summary exactly.
 2. **Spot-check at least five dates.** Pick five dates from `build/data.json` (include busy days, an empty day and a period boundary) and compare each count with the daily tooltip on the public profile contribution graph.
 3. **Treat "contributions in the last year" on the profile as an order-of-magnitude check only.** GitHub uses its own week-aligned window, so the number differs from a rolling 365-day period.
 4. **Compare Pull Requests and Code Reviews against the GraphQL totals**, not the profile page. They count what the token can see.
 
 ## Known limitations
 
-- Pull Requests and Code Reviews count only activity visible to the token and may exclude private activity.
-- Languages ignore organization repositories, private repositories, forks and archived repositories.
+- For another account, Pull Requests and Code Reviews count only public activity; for the token owner's own account they include private activity as counts.
+- Languages ignore private repositories, forks and archived repositories.
 - More than 2000 eligible public repositories are rejected.
 - Fine-grained tokens are unverified.
-- `privateContributions` can be `unknown`; the image then says `visible activity only`.
+- `privateContributions` can be `unknown`; the screen-reader text then says the totals cover activity visible to the token.
 - The period is a rolling UTC window and does not match the week-aligned profile figure.
 - The visual baselines in `tests/visual` are macOS and Chromium only.
-- The real-API check above is not filled in yet.
+- The calendar total can exceed the sum of the five visible totals by a small amount for unknown reasons (spike fact 5), which keeps `excluded` strict.
 
 ## Planned compatibility with Quick Start
 
