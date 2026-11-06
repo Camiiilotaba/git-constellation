@@ -8,6 +8,19 @@ use RuntimeException;
 
 final class NodeExporter
 {
+    /**
+     * @param array<string, string|false> $environment
+     * @return array<string, string|false>
+     */
+    public static function childEnvironment(array $environment): array
+    {
+        return array_filter(
+            $environment,
+            fn (string $name): bool => preg_match('/TOKEN|SECRET|PASSWORD/i', $name) !== 1,
+            ARRAY_FILTER_USE_KEY,
+        );
+    }
+
     public function export(string $projectRoot, string $input, string $output): void
     {
         $script = $projectRoot . '/build/renderer/export.js';
@@ -29,6 +42,8 @@ final class NodeExporter
             [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => STDOUT, 2 => STDERR],
             $pipes,
             $projectRoot,
+            // The renderer needs no credentials, so the child gets a filtered environment in case a token is set in the shell.
+            self::childEnvironment(getenv()),
         );
         if (!is_resource($process)) {
             throw new RuntimeException('Cannot start Node. Install Node.js and ensure node is available on PATH.');

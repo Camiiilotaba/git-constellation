@@ -16,4 +16,11 @@ final class NodeExporterTest extends TestCase
         $this->expectExceptionMessage('npm run build');
         (new NodeExporter())->export(sys_get_temp_dir() . '/constellation-no-renderer-' . bin2hex(random_bytes(8)), 'input.json', 'output.png');
     }
+
+    public function testChildEnvironmentStripsSecrets(): void
+    {
+        $environment = ['PATH' => '/usr/bin', 'GITHUB_TOKEN' => 'x', 'MY_SECRET' => 'y', 'DB_PASSWORD' => 'z', 'HOME' => '/h'];
+
+        self::assertSame(['PATH' => '/usr/bin', 'HOME' => '/h'], NodeExporter::childEnvironment($environment));
+    }
 }

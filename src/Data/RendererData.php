@@ -15,16 +15,16 @@ final class RendererData
     public static function fromDemo(Configuration $config, DemoFixture $fixture, DateTimeImmutable $generatedAt): array
     {
         return self::assemble(
-            'demo',
-            $generatedAt,
-            $config->username,
-            $config,
-            $fixture->calendar,
-            $fixture->pullRequests,
-            $fixture->codeReviews,
-            $fixture->languages,
-            'excluded',
-            null,
+            mode: 'demo',
+            generatedAt: $generatedAt,
+            username: $config->username,
+            config: $config,
+            calendar: $fixture->calendar,
+            pullRequests: $fixture->pullRequests,
+            codeReviews: $fixture->codeReviews,
+            languages: $fixture->languages,
+            privateContributions: 'excluded',
+            source: null,
         );
     }
 
@@ -32,16 +32,16 @@ final class RendererData
     public static function fromLive(Configuration $config, LiveSnapshot $snapshot): array
     {
         return self::assemble(
-            'live',
-            $snapshot->generatedAt,
-            $snapshot->login,
-            $config,
-            $snapshot->calendar,
-            $snapshot->pullRequests,
-            $snapshot->codeReviews,
-            $snapshot->languages,
-            $snapshot->privateContributions->value,
-            [
+            mode: 'live',
+            generatedAt: $snapshot->generatedAt,
+            username: $snapshot->login,
+            config: $config,
+            calendar: $snapshot->calendar,
+            pullRequests: $snapshot->pullRequests,
+            codeReviews: $snapshot->codeReviews,
+            languages: $snapshot->languages,
+            privateContributions: $snapshot->privateContributions->value,
+            source: [
                 'provider' => 'github',
                 'login' => $snapshot->login,
                 'restrictedContributions' => $snapshot->restrictedContributions,
