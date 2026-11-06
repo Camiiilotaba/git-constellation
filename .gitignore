@@ -1,0 +1,26 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Generated compiler and renderer artifacts
+/build/
+/build/phpunit-cache/
+/dist/*
+!/dist/constellation.png
+!/dist/
+
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+/config/local.json
+
+# Browser test output
+/test-results/
+/playwright-report/
+/coverage/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,11 @@
+{
+    "username": "demo-developer",
+    "name": "Alex Morgan",
+    "role": "Backend Developer",
+    "stack": "PHP / TypeScript",
+    "output": "dist/constellation.png",
+    "colors": {
+        "cyan": "#30e8ef",
+        "green": "#52f5a0"
+    }
+}

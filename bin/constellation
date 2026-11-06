@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if (PHP_VERSION_ID < 80300) {
+    fwrite(STDERR, "Git Constellation requires PHP 8.3 or later.\n");
+    exit(1);
+}
+
+$projectRoot = dirname(__DIR__);
+if (!is_file($projectRoot . '/vendor/autoload.php')) {
+    fwrite(STDERR, "Dependencies are missing. Run composer install first.\n");
+    exit(1);
+}
+
+require $projectRoot . '/vendor/autoload.php';
+
+exit((new GitConstellation\Cli\Application($projectRoot))->run(array_slice($argv, 1)));

@@ -1,0 +1,21 @@
+{
+  "name": "git-constellation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local, offline image renderer for GitHub contribution constellations.",
+  "engines": { "node": "^22.12.0 || >=24" },
+  "scripts": {
+    "build": "tsc",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}
