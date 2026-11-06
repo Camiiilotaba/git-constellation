@@ -1,18 +1,22 @@
-# Offline renderer — Phase 1
+# Offline renderer
 
-The PHP command prepares the validated data contract in `build/data.json`.
-This renderer consumes that contract without making GitHub or other network
-requests. It supports **demo mode only** and rejects claims of private data.
+The PHP command prepares the validated data contract in `build/data.json`
+(`schemaVersion` 2; see `../docs/phase-2.md`). This renderer consumes that
+contract without making GitHub or other network requests. It renders both
+modes: `demo` (simulated data) and `live` (statistics fetched by PHP). It
+rejects data that makes inconsistent claims, such as a demo with a source or a
+live file without one.
 
 ```sh
 npm ci
 npx playwright install chromium
 npm run build
-php bin/constellation --demo
+php bin/constellation --demo   # dist/constellation.png
+php bin/constellation --live   # dist/live.png, needs GITHUB_TOKEN; see ../README.md
 ```
 
-The normal output is `dist/constellation.png` (1920 × 840) and a self-contained
-sibling `dist/constellation.html`. The HTML includes the fitted text sizes, local
+The normal output is a 1920 × 840 PNG (`dist/constellation.png` for demo,
+`dist/live.png` for live) and a self-contained sibling HTML file. The HTML includes the fitted text sizes, local
 font, stylesheet and SVG background. It can be inspected offline.
 
 The renderer can also be called directly after PHP prepares the JSON:
@@ -24,6 +28,30 @@ node build/renderer/export.js --input build/data.json --output dist/constellatio
 Add `--no-html` to suppress the inspection HTML. PNG output is written through a
 temporary file and renamed after successful rendering. Chromium closes on both
 success and failure. Output does not contain source JSON or environment values.
+
+## Contract v2 and mode-dependent copy
+
+`validation.ts` requires `schemaVersion` 2, `mode` of `demo` or `live` and a
+`privateContributions` state of `included`, `excluded` or `unknown`. Demo data
+must report `excluded` with a null `source`; live data must carry a `source`
+object (provider, login, restricted count, visible totals, repositories
+scanned). `metrics.pullRequests` and `metrics.codeReviews` may be `null`.
+
+The renderer never reads the token or any environment value; the PHP side also
+filters credential-like variables from this process's environment.
+
+| Element | Demo | Live |
+| --- | --- | --- |
+| Page title | `<name> · Git Constellation · Demo` | `<name> · Git Constellation` |
+| Brand badge | `DEMO / SIMULATED DATA` | none |
+| Contribution subtitle | `public activity only` | `private counts anonymized` (`included`), `public activity only` (`excluded`), `visible activity only` (`unknown`) |
+| Contribution icon | calendar | lock when `included`, otherwise calendar |
+| PR / review tooltip | `Simulated` | `Visible to the token; may exclude private activity` |
+| Empty chart text | `No contributions in this example period` | `No contributions in this period` |
+| Empty languages text | `No eligible public repositories in this example.` | `No eligible public repositories.` |
+| Accessible description | states it is a demonstration with simulated data | states live statistics, the generation time and that PR and review counts may exclude private activity |
+
+The language panel always says `By public repository count`.
 
 ## Responsibilities
 
