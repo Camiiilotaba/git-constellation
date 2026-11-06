@@ -134,7 +134,7 @@ Token scopes: <scopes reported by GitHub>
 Rate limit remaining: <n>
 ```
 
-The period ends today in UTC and starts one year earlier plus one day: 365 days, or 366 when it contains February 29. Check `Token scopes` to confirm the token has only `read:user`. [docs/phase-2.md](docs/phase-2.md) explains how to verify the numbers against GitHub.
+The period ends today in UTC and starts one year earlier plus one day: 365 days, or 366 when it ends after February 29 and starts before it (a period ending on February 29 itself has 365). Check `Token scopes` to confirm the token has only `read:user`. [docs/phase-2.md](docs/phase-2.md) explains how to verify the numbers against GitHub.
 
 ### What includes private activity
 

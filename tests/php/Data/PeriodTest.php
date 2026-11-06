@@ -27,6 +27,13 @@ final class PeriodTest extends TestCase
         self::assertSame(366, $period->dayCount());
     }
 
+    public function testPeriodEndingOnLeapDayHas365Days(): void
+    {
+        $period = Period::trailingYear(new DateTimeImmutable('2028-02-29T00:00:00Z'));
+        self::assertSame('2027-03-02', $period->start);
+        self::assertSame(365, $period->dayCount());
+    }
+
     public function testNowIsConvertedToUtcDate(): void
     {
         $period = Period::trailingYear(new DateTimeImmutable('2026-11-06T23:30:00-05:00'));

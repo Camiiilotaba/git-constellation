@@ -154,7 +154,7 @@ The tool never reads private code, repository names, branches, commit messages o
 | State | Rule | Subtitle in the image |
 | --- | --- | --- |
 | `included` | `restrictedContributionsCount > 0` or `hasAnyRestrictedContributions` is true | `private counts anonymized` |
-| `excluded` | No restricted signal and the calendar total equals the sum of the five visible totals (commits, issues, pull requests, reviews, repositories) | `public activity only` |
+| `excluded` | No restricted signal and the in-period calendar total equals the sum of the five visible totals (commits, issues, pull requests, reviews, repositories) | `public activity only` |
 | `unknown` | Anything else | `visible activity only` |
 
 `included` is claimed only on an explicit GitHub signal. It is never inferred from arithmetic alone. Demo mode always renders `public activity only`.
@@ -163,11 +163,14 @@ The tool never reads private code, repository names, branches, commit messages o
 
 Result: pending (to be filled by the maintainer after the read-only spike).
 
-This validates one assumption: that `contributionCalendar.totalContributions` equals the sum of all returned days, including the padded days outside the period, as `ContributionsQuery` currently asserts. If a real response disagrees, the sum in `assertCalendarTotal` must change.
+`ContributionsQuery` accepts `contributionCalendar.totalContributions` if it equals either the sum of all returned days (padded days included) or the sum of the in-period days. The in-period sum is what feeds the `excluded`/`unknown` rule, since the five visible totals cover the same window. Checklist for the maintainer:
+
+- [ ] Record which of the two sums `totalContributions` equals.
+- [ ] Record whether a 366-day span (e.g. from 2027-03-02T00:00:00Z to 2028-03-01T23:59:59Z) is accepted by `contributionsCollection`.
 
 ## Rolling period
 
-The period ends today in UTC and starts one year earlier plus one day. That is 365 days, or 366 when the span contains February 29. `Period::trailingYear` computes it from the current UTC date; `from` is the start at `00:00:00Z` and `to` is the end at `23:59:59Z`.
+The period ends today in UTC and starts one year earlier plus one day. That is 365 days, or 366 when the period ends after February 29 and starts before it (a period ending on February 29 itself has 365 days, because `sub('P1Y')` on that date overflows to March 1). `Period::trailingYear` computes it from the current UTC date; `from` is the start at `00:00:00Z` and `to` is the end at `23:59:59Z`.
 
 This is not the window GitHub uses for the profile page, which is week-aligned. See "Manual verification".
 
@@ -212,7 +215,7 @@ Run after `php bin/constellation --live --config=config/local.json`. Use the sam
      -d '{"query":"query($login:String!,$from:DateTime!,$to:DateTime!){user(login:$login){contributionsCollection(from:$from,to:$to){contributionCalendar{totalContributions}totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount hasAnyRestrictedContributions}}}","variables":{"login":"YOUR_LOGIN","from":"2025-11-07T00:00:00Z","to":"2026-11-06T23:59:59Z"}}'
    ```
 
-   `totalContributions` should match the summary's `Contributions (calendar)`; if it differs, that is the question the Real-API check above is meant to settle. The pull request and review totals, `restrictedContributionsCount` and the private state must match the summary exactly.
+   The summary's `Contributions (calendar)` is the in-period sum of the daily counts. GitHub's `totalContributions` may equal that sum or the sum that includes the padded week days; the spike records which. The pull request and review totals, `restrictedContributionsCount` and the private state must match the summary exactly.
 2. **Spot-check at least five dates.** Pick five dates from `build/data.json` (include busy days, an empty day and a period boundary) and compare each count with the daily tooltip on the public profile contribution graph.
 3. **Treat "contributions in the last year" on the profile as an order-of-magnitude check only.** GitHub uses its own week-aligned window, so the number differs from a rolling 365-day period.
 4. **Compare Pull Requests and Code Reviews against the GraphQL totals**, not the profile page. They count what the token can see.
