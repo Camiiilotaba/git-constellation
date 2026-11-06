@@ -20,7 +20,7 @@ final readonly class Period
     {
         $utc = new DateTimeZone('UTC');
         $end = new DateTimeImmutable($now->setTimezone($utc)->format('Y-m-d'), $utc);
-        // PHP overflows sub('P1Y') on a leap day to March 1, so a period ending after Feb 29 can hold 366 days.
+        // sub('P1Y') on Feb 29 overflows to Mar 1, giving a 365-day period; a period containing Feb 29 holds 366 days.
         $start = $end->sub(new DateInterval('P1Y'))->add(new DateInterval('P1D'));
 
         return new self($start->format('Y-m-d'), $end->format('Y-m-d'));

@@ -6,6 +6,7 @@
     "require": {
         "php": "^8.3",
         "ext-json": "*",
+        "symfony/dotenv": "^7.4",
         "symfony/http-client": "^7.4"
     },
     "require-dev": {
