@@ -4,6 +4,9 @@
             "remaining": 4990,
             "resetAt": "2026-11-06T13:00:00Z"
         },
+        "viewer": {
+            "login": "octo-sample"
+        },
         "user": {
             "login": "octo-sample",
             "contributionsCollection": {

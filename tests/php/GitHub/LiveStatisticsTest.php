@@ -83,6 +83,7 @@ final class LiveStatisticsTest extends TestCase
         self::assertSame(612, $snapshot->visibleTotals->commits);
         self::assertSame(7, $snapshot->restrictedContributions);
         self::assertSame(PrivateContributions::Included, $snapshot->privateContributions);
+        self::assertTrue($snapshot->ownAccount);
         self::assertSame(8, $snapshot->repositoriesScanned);
         self::assertLessThanOrEqual(5, count($snapshot->languages));
         self::assertNotSame([], $snapshot->languages);
@@ -104,6 +105,7 @@ final class LiveStatisticsTest extends TestCase
         }
         $contributions = json_encode(['data' => [
             'rateLimit' => ['remaining' => 4000, 'resetAt' => '2026-11-06T13:00:00Z'],
+            'viewer' => ['login' => 'someone-else'],
             'user' => ['login' => 'octo-sample', 'contributionsCollection' => [
                 'contributionCalendar' => ['totalContributions' => 0, 'weeks' => [['contributionDays' => $days]]],
                 'totalCommitContributions' => 0,
@@ -138,6 +140,7 @@ final class LiveStatisticsTest extends TestCase
         }
         $contributions = json_encode(['data' => [
             'rateLimit' => ['remaining' => 4000, 'resetAt' => '2026-11-06T13:00:00Z'],
+            'viewer' => ['login' => 'someone-else'],
             'user' => ['login' => 'octo-sample', 'contributionsCollection' => [
                 'contributionCalendar' => ['totalContributions' => 10, 'weeks' => [['contributionDays' => $days]]],
                 'totalCommitContributions' => 5,
@@ -158,6 +161,32 @@ final class LiveStatisticsTest extends TestCase
             ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
 
         self::assertSame(PrivateContributions::Excluded, $snapshot->privateContributions);
+    }
+
+    public function testOwnAccountIsIncluded(): void
+    {
+        $body = $this->withViewer($this->fixture('contributions-no-restricted'), 'octo-sample');
+
+        $snapshot = $this->statistics([$this->response($body), ...$this->repositoryPages()])
+            ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
+
+        self::assertSame(0, $snapshot->restrictedContributions);
+        self::assertTrue($snapshot->ownAccount);
+        self::assertSame(PrivateContributions::Included, $snapshot->privateContributions);
+    }
+
+    public function testOtherAccountWithoutRestrictedIsExcluded(): void
+    {
+        $snapshot = $this->statistics([$this->response($this->fixture('contributions-no-restricted')), ...$this->repositoryPages()])
+            ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
+
+        self::assertFalse($snapshot->ownAccount);
+        self::assertSame(PrivateContributions::Excluded, $snapshot->privateContributions);
+    }
+
+    private function withViewer(string $body, string $viewer): string
+    {
+        return str_replace('"login": "someone-else"', '"login": "' . $viewer . '"', $body);
     }
 
     public function testContributionsFailureAbortsBeforeRepositories(): void

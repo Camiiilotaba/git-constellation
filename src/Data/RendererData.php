@@ -45,6 +45,7 @@ final class RendererData
                 'provider' => 'github',
                 'login' => $snapshot->login,
                 'restrictedContributions' => $snapshot->restrictedContributions,
+                'ownAccount' => $snapshot->ownAccount,
                 'visibleTotals' => $snapshot->visibleTotals->toArray(),
                 'repositoriesScanned' => $snapshot->repositoriesScanned,
             ],

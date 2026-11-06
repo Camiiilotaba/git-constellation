@@ -3,6 +3,7 @@ export interface ConstellationSource {
   provider: 'github';
   login: string;
   restrictedContributions: number;
+  ownAccount: boolean;
   visibleTotals: { commits: number; issues: number; pullRequests: number; reviews: number; repositories: number };
   repositoriesScanned: number;
 }

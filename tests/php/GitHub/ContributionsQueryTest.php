@@ -170,4 +170,24 @@ final class ContributionsQueryTest extends TestCase
         self::assertSame(0, $result->restrictedContributions);
         self::assertFalse($result->hasAnyRestrictedContributions);
     }
+
+    public function testParsesViewerLogin(): void
+    {
+        $result = $this->query($this->fixture('contributions-no-restricted'))->fetch('octo-sample', $this->period());
+
+        self::assertSame('someone-else', $result->viewerLogin);
+        self::assertStringContainsString('viewer { login }', ContributionsQuery::QUERY);
+    }
+
+    public function testMissingViewerLoginFails(): void
+    {
+        $data = json_decode($this->fixture('contributions-ok'), true);
+        unset($data['data']['viewer']);
+        $query = $this->query(json_encode($data));
+
+        $exception = $this->failure(fn () => $query->fetch('octo-sample', $this->period()));
+
+        self::assertSame(GitHubErrorKind::Response, $exception->kind);
+        self::assertStringContainsString('viewer.login', $exception->getMessage());
+    }
 }

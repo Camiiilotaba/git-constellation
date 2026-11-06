@@ -14,25 +14,27 @@ final class PrivateContributionsTest extends TestCase
 {
     /** @param array{int, int, int, int, int} $visible */
     #[DataProvider('cases')]
-    public function testDetermine(int $calendarTotal, array $visible, int $restricted, bool $hasAny, PrivateContributions $expected): void
+    public function testDetermine(int $calendarTotal, array $visible, int $restricted, bool $hasAny, bool $ownAccount, PrivateContributions $expected): void
     {
-        self::assertSame($expected, PrivateContributions::determine($calendarTotal, new VisibleTotals(...$visible), $restricted, $hasAny));
+        self::assertSame($expected, PrivateContributions::determine($calendarTotal, new VisibleTotals(...$visible), $restricted, $hasAny, $ownAccount));
     }
 
     public static function cases(): iterable
     {
-        yield 'restricted count' => [120, [50, 10, 20, 15, 5], 20, true, PrivateContributions::Included];
-        yield 'flag only' => [100, [50, 10, 20, 15, 5], 0, true, PrivateContributions::Included];
-        yield 'arithmetic gap only' => [110, [50, 10, 20, 15, 5], 0, false, PrivateContributions::Unknown];
-        yield 'exact match' => [100, [50, 10, 20, 15, 5], 0, false, PrivateContributions::Excluded];
-        yield 'all zero' => [0, [0, 0, 0, 0, 0], 0, false, PrivateContributions::Excluded];
-        yield 'calendar below visible' => [90, [50, 10, 20, 15, 5], 0, false, PrivateContributions::Unknown];
+        yield 'restricted count' => [120, [50, 10, 20, 15, 5], 20, true, false, PrivateContributions::Included];
+        yield 'flag only' => [100, [50, 10, 20, 15, 5], 0, true, false, PrivateContributions::Included];
+        yield 'arithmetic gap only' => [110, [50, 10, 20, 15, 5], 0, false, false, PrivateContributions::Unknown];
+        yield 'exact match' => [100, [50, 10, 20, 15, 5], 0, false, false, PrivateContributions::Excluded];
+        yield 'all zero' => [0, [0, 0, 0, 0, 0], 0, false, false, PrivateContributions::Excluded];
+        yield 'calendar below visible' => [90, [50, 10, 20, 15, 5], 0, false, false, PrivateContributions::Unknown];
+        yield 'own account, no restricted' => [100, [50, 10, 20, 15, 5], 0, false, true, PrivateContributions::Included];
+        yield 'own account with gap' => [110, [50, 10, 20, 15, 5], 0, false, true, PrivateContributions::Included];
     }
 
     public function testNegativeInputRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        PrivateContributions::determine(-1, new VisibleTotals(0, 0, 0, 0, 0), 0, false);
+        PrivateContributions::determine(-1, new VisibleTotals(0, 0, 0, 0, 0), 0, false, false);
     }
 
     public function testVisibleTotalsSumAndArray(): void

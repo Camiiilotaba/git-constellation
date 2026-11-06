@@ -11,7 +11,7 @@ query($login: String!, $after: String) {
   user(login: $login) {
     repositories(
       first: 100, after: $after,
-      ownerAffiliations: [OWNER], privacy: PUBLIC, isFork: false,
+      ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], privacy: PUBLIC, isFork: false,
       orderBy: { field: NAME, direction: ASC }
     ) {
       pageInfo { hasNextPage endCursor }

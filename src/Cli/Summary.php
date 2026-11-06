@@ -18,6 +18,7 @@ final class Summary
             fn (array $language): string => "{$language['name']} ({$language['repositories']})",
             $snapshot->languages,
         ));
+        $ownAccount = $snapshot->ownAccount ? 'yes' : 'no';
         $scopes = implode(', ', $snapshot->tokenScopes);
 
         return implode("\n", [
@@ -25,7 +26,7 @@ final class Summary
             "Period (UTC): {$period->start} .. {$period->end}",
             'Generated at: ' . $snapshot->generatedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             "Contributions (calendar): {$metrics->totalContributions}",
-            "Private contributions: {$snapshot->privateContributions->value} (restricted count: {$snapshot->restrictedContributions})",
+            "Private contributions: {$snapshot->privateContributions->value} (restricted count: {$snapshot->restrictedContributions}, own account: {$ownAccount})",
             "Pull Requests (visible to token): {$snapshot->pullRequests}",
             "Code Reviews (visible to token): {$snapshot->codeReviews}",
             "Active Days: {$metrics->activeDays}",

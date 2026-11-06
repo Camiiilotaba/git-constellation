@@ -33,6 +33,7 @@ final class LiveStatistics
         }
 
         $repositories = $this->repositories->fetch($login);
+        $ownAccount = strcasecmp($contributions->viewerLogin, $contributions->login) === 0;
 
         return new LiveSnapshot(
             $contributions->login,
@@ -47,7 +48,9 @@ final class LiveStatistics
                 $contributions->visibleTotals,
                 $contributions->restrictedContributions,
                 $contributions->hasAnyRestrictedContributions,
+                $ownAccount,
             ),
+            $ownAccount,
             LanguageRanking::calculate($repositories->repositories),
             $repositories->scanned,
             $generatedAt,

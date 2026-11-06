@@ -4,6 +4,9 @@
             "remaining": 4990,
             "resetAt": "2026-11-06T13:00:00Z"
         },
+        "viewer": {
+            "login": "someone-else"
+        },
         "user": {
             "login": "octo-sample",
             "contributionsCollection": {
@@ -1740,7 +1743,7 @@
                         }
                     ]
                 },
-                "totalCommitContributions": 612,
+                "totalCommitContributions": 621,
                 "totalIssueContributions": 14,
                 "totalPullRequestContributions": 58,
                 "totalPullRequestReviewContributions": 33,

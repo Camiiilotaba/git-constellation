@@ -66,6 +66,11 @@ describe('offline data boundary', () => {
 
   it('accepts schema v2 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });
   it('rejects schemaVersion 1', () => { expect(() => validateData({ ...demoData(), schemaVersion: 1 })).toThrow(/schemaVersion/); });
+  it('requires a boolean source.ownAccount in live mode', () => {
+    const source = liveData().source!;
+    expect(() => validateData(liveData({ source: { ...source, ownAccount: 'yes' as unknown as boolean } }))).toThrow(/source.ownAccount/);
+  });
+
   it('accepts live data with each privateContributions state', () => {
     for (const state of ['included', 'excluded', 'unknown'] as const) {
       expect(() => validateData(liveData({ privateContributions: state }))).not.toThrow();

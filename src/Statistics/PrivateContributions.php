@@ -18,11 +18,13 @@ enum PrivateContributions: string
         VisibleTotals $visible,
         int $restrictedContributions,
         bool $hasAnyRestricted,
+        bool $ownAccount,
     ): self {
         IntegerRange::nonNegative($calendarTotal, 'calendarTotal');
         IntegerRange::nonNegative($restrictedContributions, 'restrictedContributions');
 
-        if ($restrictedContributions > 0 || $hasAnyRestricted) {
+        // For the token owner's own account GitHub folds private activity into the totals and keeps the restricted count at 0.
+        if ($restrictedContributions > 0 || $hasAnyRestricted || $ownAccount) {
             return self::Included;
         }
 

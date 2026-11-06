@@ -11,6 +11,7 @@ final readonly class ContributionsResult
 {
     public function __construct(
         public string $login,
+        public string $viewerLogin,
         public ContributionCalendar $calendar,
         public int $calendarTotal,
         public VisibleTotals $visibleTotals,

@@ -50,6 +50,7 @@ export function liveData(overrides: Partial<ConstellationData> = {}): Constellat
       provider: 'github',
       login: 'demo-developer',
       restrictedContributions: 20,
+      ownAccount: false,
       visibleTotals: { commits: 50, issues: 10, pullRequests: 20, reviews: 15, repositories: 5 },
       repositoriesScanned: 12,
     },

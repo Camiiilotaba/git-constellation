@@ -37,6 +37,7 @@ final class SummaryTest extends TestCase
             new VisibleTotals(4, 1, 7, 5, 2),
             2,
             PrivateContributions::Included,
+            true,
             $languages,
             12,
             new DateTimeImmutable('2026-11-06T12:00:00Z'),
@@ -61,7 +62,7 @@ final class SummaryTest extends TestCase
             . "Period (UTC): 2025-11-07 .. 2026-11-06\n"
             . "Generated at: 2026-11-06T12:00:00Z\n"
             . "Contributions (calendar): 6\n"
-            . "Private contributions: included (restricted count: 2)\n"
+            . "Private contributions: included (restricted count: 2, own account: yes)\n"
             . "Pull Requests (visible to token): 7\n"
             . "Code Reviews (visible to token): 5\n"
             . "Active Days: 3\n"

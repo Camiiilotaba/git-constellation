@@ -15,6 +15,7 @@ final class ContributionsQuery
     public const string QUERY = <<<'GRAPHQL'
 query($login: String!, $from: DateTime!, $to: DateTime!) {
   rateLimit { remaining resetAt }
+  viewer { login }
   user(login: $login) {
     login
     contributionsCollection(from: $from, to: $to) {
@@ -58,6 +59,12 @@ GRAPHQL;
             throw new GitHubApiException(GitHubErrorKind::Response, "GitHub returned a different user than requested: {$returnedLogin}");
         }
 
+        $viewer = $data['viewer'] ?? null;
+        $viewerLogin = is_array($viewer) ? ($viewer['login'] ?? null) : null;
+        if (!is_string($viewerLogin)) {
+            throw $this->invalid('viewer.login');
+        }
+
         $collection = $this->object($user, 'contributionsCollection', 'contributionsCollection');
         $calendarData = $this->object($collection, 'contributionCalendar', 'contributionsCollection.contributionCalendar');
         $calendarTotal = $this->integer($calendarData, 'totalContributions', 'contributionCalendar.totalContributions');
@@ -80,6 +87,7 @@ GRAPHQL;
 
         return new ContributionsResult(
             $returnedLogin,
+            $viewerLogin,
             $calendar,
             $calendarTotal,
             new VisibleTotals(

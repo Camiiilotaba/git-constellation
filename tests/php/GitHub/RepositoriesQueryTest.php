@@ -116,4 +116,9 @@ final class RepositoriesQueryTest extends TestCase
             self::assertSame('GitHub user not found: ghost', $exception->getMessage());
         }
     }
+
+    public function testQueryIncludesOwnedCollaboratedAndOrganizationRepositories(): void
+    {
+        self::assertStringContainsString('ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]', RepositoriesQuery::QUERY);
+    }
 }

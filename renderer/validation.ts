@@ -47,6 +47,7 @@ function validateSource(input: unknown): void {
   if (source.provider !== 'github') throw new Error("source.provider must be 'github'.");
   text(source.login, 'source.login', LOGIN_LIMIT);
   integer(source.restrictedContributions, 'source.restrictedContributions');
+  if (typeof source.ownAccount !== 'boolean') throw new Error('source.ownAccount must be a boolean.');
   integer(source.repositoriesScanned, 'source.repositoriesScanned');
   const totals = object(source.visibleTotals, 'source.visibleTotals');
   for (const key of ['commits', 'issues', 'pullRequests', 'reviews', 'repositories']) {

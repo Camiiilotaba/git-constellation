@@ -45,6 +45,7 @@ final class RendererDataLiveTest extends TestCase
             new VisibleTotals(612, 14, 58, 33, 4),
             7,
             $state,
+            true,
             [['name' => 'PHP', 'repositories' => 5, 'color' => '#4F5D95']],
             8,
             new DateTimeImmutable('2026-11-06T14:00:00+02:00'),
@@ -79,6 +80,7 @@ final class RendererDataLiveTest extends TestCase
             'provider' => 'github',
             'login' => 'Octo-Sample',
             'restrictedContributions' => 7,
+            'ownAccount' => true,
             'visibleTotals' => ['commits' => 612, 'issues' => 14, 'pullRequests' => 58, 'reviews' => 33, 'repositories' => 4],
             'repositoriesScanned' => 8,
         ], $data['source']);

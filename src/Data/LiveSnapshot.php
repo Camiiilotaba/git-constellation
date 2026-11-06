@@ -22,6 +22,7 @@ final readonly class LiveSnapshot
         public VisibleTotals $visibleTotals,
         public int $restrictedContributions,
         public PrivateContributions $privateContributions,
+        public bool $ownAccount,
         public array $languages,
         public int $repositoriesScanned,
         public DateTimeImmutable $generatedAt,
