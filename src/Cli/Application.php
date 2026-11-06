@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GitConstellation\Cli;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use GitConstellation\Config\Configuration;
 use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\RendererData;
@@ -43,7 +45,7 @@ HELP);
             $fixture = DemoFixture::fromArray(JsonFile::read($this->path($options->fixture)));
             $input = $this->projectRoot . '/build/data.json';
             $output = $this->path($config->output);
-            JsonFile::write($input, RendererData::fromDemo($config, $fixture));
+            JsonFile::write($input, RendererData::fromDemo($config, $fixture, new DateTimeImmutable('now', new DateTimeZone('UTC'))));
             fwrite(STDOUT, "DEMO — simulated statistics only. Prepared {$input}\n");
             (new NodeExporter())->export($this->projectRoot, $input, $output);
             fwrite(STDOUT, "Generated demo image: {$output}\n");

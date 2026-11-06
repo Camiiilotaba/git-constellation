@@ -21,8 +21,9 @@ export function recalculate(data: ConstellationData): ConstellationData {
 
 export function demoData(): ConstellationData {
   return recalculate({
-    schemaVersion: 1,
+    schemaVersion: 2,
     mode: 'demo',
+    generatedAt: '2026-11-06T12:00:00Z',
     profile: { username: 'demo-developer', name: 'Alex Morgan', role: 'Backend Developer', stack: 'PHP / TypeScript' },
     theme: { cyan: '#30e8ef', green: '#52f5a0' },
     period: { ...fixture.period },
@@ -35,8 +36,25 @@ export function demoData(): ConstellationData {
       { name: 'Python', repositories: 3, color: '#40b9ca' },
       { name: 'SQL', repositories: 2, color: '#24b978' },
     ],
-    privateContributionsIncluded: false,
+    privateContributions: 'excluded',
+    source: null,
   });
+}
+
+export function liveData(overrides: Partial<ConstellationData> = {}): ConstellationData {
+  return {
+    ...demoData(),
+    mode: 'live',
+    privateContributions: 'included',
+    source: {
+      provider: 'github',
+      login: 'demo-developer',
+      restrictedContributions: 20,
+      visibleTotals: { commits: 50, issues: 10, pullRequests: 20, reviews: 15, repositories: 5 },
+      repositoriesScanned: 12,
+    },
+    ...overrides,
+  };
 }
 
 export function shortData(counts: number[] = [1, 0, 2, 3, 0]): ConstellationData {

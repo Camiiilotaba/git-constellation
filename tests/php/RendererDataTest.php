@@ -9,22 +9,29 @@ use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\RendererData;
 use GitConstellation\Support\IntegerRange;
 use GitConstellation\Support\JsonFile;
+use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class RendererDataTest extends TestCase
 {
-    public function testCommittedFixtureProducesCompleteVersionOneContract(): void
+    public function testCommittedFixtureProducesCompleteVersionTwoContract(): void
     {
         $root = dirname(__DIR__, 2);
         $config = Configuration::fromArray(JsonFile::read($root . '/config/demo.json'));
-        $data = RendererData::fromDemo($config, DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')));
+        $data = RendererData::fromDemo(
+            $config,
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')),
+            new DateTimeImmutable('2026-11-06T12:00:00Z'),
+        );
 
-        self::assertSame(['schemaVersion', 'mode', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'privateContributionsIncluded'], array_keys($data));
-        self::assertSame(1, $data['schemaVersion']);
+        self::assertSame(['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'privateContributions', 'source'], array_keys($data));
+        self::assertSame(2, $data['schemaVersion']);
         self::assertSame('demo', $data['mode']);
-        self::assertFalse($data['privateContributionsIncluded']);
+        self::assertSame('2026-11-06T12:00:00Z', $data['generatedAt']);
+        self::assertSame('excluded', $data['privateContributions']);
+        self::assertNull($data['source']);
         self::assertSame(['username' => 'demo-developer', 'name' => 'Alex Morgan', 'role' => 'Backend Developer', 'stack' => 'PHP / TypeScript'], $data['profile']);
         self::assertSame(['cyan' => '#30e8ef', 'green' => '#52f5a0'], $data['theme']);
         self::assertSame(['start' => '2025-11-01', 'end' => '2026-10-31'], $data['period']);
@@ -34,6 +41,18 @@ final class RendererDataTest extends TestCase
         self::assertSame([8, 6, 4, 3, 2], array_column($data['languages'], 'repositories'));
         self::assertArrayNotHasKey('repositories', $data);
         self::assertArrayNotHasKey('provenance', $data);
+    }
+
+    public function testGeneratedAtIsNormalizedToUtc(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $data = RendererData::fromDemo(
+            Configuration::fromArray(JsonFile::read($root . '/config/demo.json')),
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')),
+            new DateTimeImmutable('2026-11-06T08:00:00-05:00'),
+        );
+
+        self::assertSame('2026-11-06T13:00:00Z', $data['generatedAt']);
     }
 
     public function testUnknownOptionalMetricsRemainNullAndSafeLimitIsAccepted(): void

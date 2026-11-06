@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace GitConstellation\Data;
 
 use GitConstellation\Config\Configuration;
+use DateTimeImmutable;
+use DateTimeZone;
 use GitConstellation\Statistics\ContributionMetrics;
 
 final class RendererData
 {
-    /** @return array<string, mixed> Exact schemaVersion 1 handoff to the TypeScript renderer. */
-    public static function fromDemo(Configuration $config, DemoFixture $fixture): array
+    /** @return array<string, mixed> Exact schemaVersion 2 handoff to the TypeScript renderer. */
+    public static function fromDemo(Configuration $config, DemoFixture $fixture, DateTimeImmutable $generatedAt): array
     {
         $metrics = ContributionMetrics::calculate($fixture->calendar);
 
         return [
-            'schemaVersion' => 1,
+            'schemaVersion' => 2,
             'mode' => 'demo',
+            'generatedAt' => $generatedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'profile' => [
                 'username' => $config->username,
                 'name' => $config->name,
@@ -34,7 +37,8 @@ final class RendererData
                 'codeReviews' => $fixture->codeReviews,
             ],
             'languages' => $fixture->languages,
-            'privateContributionsIncluded' => false,
+            'privateContributions' => 'excluded',
+            'source' => null,
         ];
     }
 }

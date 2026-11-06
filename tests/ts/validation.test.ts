@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDate, validateData } from '../../renderer/validation.js';
-import { demoData, shortData } from './fixtures.js';
+import { demoData, liveData, shortData } from './fixtures.js';
 
 describe('offline data boundary', () => {
   it('accepts a complete fixture and nullable unavailable metrics', () => {
@@ -64,11 +64,31 @@ describe('offline data boundary', () => {
     expect(() => validateData(data)).toThrow(/at least one/);
   });
 
-  it('rejects unsupported modes and private claims in demonstration data', () => {
-    expect(() => validateData({ ...shortData(), mode: 'live' })).toThrow(/demo/);
-    expect(() => validateData({ ...shortData(), privateContributionsIncluded: true })).toThrow(/must not claim private/);
-    expect(() => validateData({ ...shortData(), schemaVersion: 2 })).toThrow(/schemaVersion/);
+  it('accepts schema v2 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });
+  it('rejects schemaVersion 1', () => { expect(() => validateData({ ...demoData(), schemaVersion: 1 })).toThrow(/schemaVersion/); });
+  it('accepts live data with each privateContributions state', () => {
+    for (const state of ['included', 'excluded', 'unknown'] as const) {
+      expect(() => validateData(liveData({ privateContributions: state }))).not.toThrow();
+    }
   });
+  it('rejects included/unknown in demo mode', () => {
+    expect(() => validateData({ ...demoData(), privateContributions: 'included' })).toThrow(/demo/i);
+    expect(() => validateData({ ...demoData(), privateContributions: 'unknown' })).toThrow(/demo/i);
+  });
+  it('requires source in live mode and null source in demo mode', () => {
+    expect(() => validateData(liveData({ source: null }))).toThrow(/source/);
+    expect(() => validateData({ ...demoData(), source: liveData().source })).toThrow(/source/);
+  });
+  it('rejects a malformed live source', () => {
+    const source = { ...liveData().source!, provider: 'gitlab' };
+    expect(() => validateData(liveData({ source: source as never }))).toThrow(/source.provider/);
+    expect(() => validateData(liveData({ source: { ...liveData().source!, login: 'x'.repeat(40) } }))).toThrow(/source.login/);
+    expect(() => validateData(liveData({ source: { ...liveData().source!, repositoriesScanned: -1 } }))).toThrow(/repositoriesScanned/);
+  });
+  it('validates generatedAt as ISO 8601 UTC', () => {
+    expect(() => validateData({ ...demoData(), generatedAt: '2026-11-06 12:00' })).toThrow(/generatedAt/);
+  });
+  it('rejects an unknown mode', () => { expect(() => validateData({ ...demoData(), mode: 'test' })).toThrow(/mode/); });
 
   it('reports incomplete fields without echoing data', () => {
     const data: Record<string, unknown> = { ...shortData(), profile: { name: 'SENSITIVE_SENTINEL' } };

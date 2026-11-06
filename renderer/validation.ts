@@ -2,6 +2,9 @@ import type { ConstellationData } from './types.js';
 
 export const DAY_MS = 86_400_000;
 const HEX_COLOR = /^#[\da-f]{6}$/i;
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const PRIVATE_STATES = ['included', 'excluded', 'unknown'];
+const LOGIN_LIMIT = 39;
 
 export function parseDate(value: unknown, label = 'date'): number {
   if (typeof value !== 'string' || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -39,11 +42,26 @@ function color(value: unknown, label: string): asserts value is string {
   }
 }
 
-/** Validate the offline rendering boundary, including calendar continuity. */
+function validateSource(input: unknown): void {
+  const source = object(input, 'source');
+  if (source.provider !== 'github') throw new Error("source.provider must be 'github'.");
+  text(source.login, 'source.login', LOGIN_LIMIT);
+  integer(source.restrictedContributions, 'source.restrictedContributions');
+  integer(source.repositoriesScanned, 'source.repositoriesScanned');
+  const totals = object(source.visibleTotals, 'source.visibleTotals');
+  for (const key of ['commits', 'issues', 'pullRequests', 'reviews', 'repositories']) {
+    integer(totals[key], `source.visibleTotals.${key}`);
+  }
+}
+
+/** Validate the rendering rendering boundary, including calendar continuity. */
 export function validateData(input: unknown): ConstellationData {
   const root = object(input, 'data');
-  if (root.schemaVersion !== 1) throw new Error('Unsupported schemaVersion; expected 1.');
-  if (root.mode !== 'demo') throw new Error('Phase 1 only supports demo mode.');
+  if (root.schemaVersion !== 2) throw new Error('Unsupported schemaVersion; expected 2.');
+  if (root.mode !== 'demo' && root.mode !== 'live') throw new Error("mode must be 'demo' or 'live'.");
+  if (typeof root.generatedAt !== 'string' || !ISO_UTC.test(root.generatedAt) || !Number.isFinite(Date.parse(root.generatedAt))) {
+    throw new Error('generatedAt must be an ISO 8601 UTC timestamp.');
+  }
   const profile = object(root.profile, 'profile');
   for (const key of ['username', 'name', 'role', 'stack']) text(profile[key], `profile.${key}`);
   const theme = object(root.theme, 'theme');
@@ -90,7 +108,14 @@ export function validateData(input: unknown): ConstellationData {
     if (language.repositories === 0) throw new Error('A ranked language must appear in at least one repository.');
     color(language.color, `languages[${index}].color`);
   }
-  if (typeof root.privateContributionsIncluded !== 'boolean') throw new Error('privateContributionsIncluded must be boolean.');
-  if (root.privateContributionsIncluded) throw new Error('Demo data must not claim private contributions.');
+  if (!PRIVATE_STATES.includes(root.privateContributions as string)) {
+    throw new Error('privateContributions must be included, excluded or unknown.');
+  }
+  if (root.mode === 'demo') {
+    if (root.privateContributions !== 'excluded') throw new Error('Demo data must report privateContributions as excluded.');
+    if (root.source !== null) throw new Error('Demo data must have a null source.');
+  } else {
+    validateSource(root.source);
+  }
   return root as unknown as ConstellationData;
 }
