@@ -132,6 +132,7 @@ describe('HTML composition', () => {
     const html = renderHtml(data, assets);
     expect(html).toContain('No contributions in this period');
     expect(html.match(/class="monthly-star"/g)).toHaveLength(1);
+    expect(privacyText(html)).toBe('No contributions yet');
     expect(html).not.toMatch(/NaN|Infinity/);
   });
 

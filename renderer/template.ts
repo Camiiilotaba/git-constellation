@@ -43,7 +43,7 @@ function constellation(data: ConstellationData): string {
   const points = monthly ? monthlyPoints(data.days) : weeklyPoints(data.days);
   const path = smoothPath(points);
   const peak = Math.max(0, ...points.map(point => point.count));
-  // The 100 px monthly flare gap was approved visually against the all-time mockup.
+  // Months are spaced wider apart than weeks, so flares can sit closer together.
   const flares = flareIndices(points, monthly ? 100 : 150);
   const branches = decorativeBranches(points);
   const ticks = monthly ? yearTicks(points) : monthTicks(data.period.start, data.period.end);
@@ -92,7 +92,7 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const period = `${formatDate(data.period.start)} – ${formatDate(data.period.end)}`;
   const formatMonth = (value: string): string => new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
   const compactPeriod = data.period.kind === 'all-time'
-    ? `Since ${formatMonth(data.period.start)}`
+    ? metrics.totalContributions === 0 ? 'No contributions yet' : `Since ${formatMonth(data.period.start)}`
     : formatMonth(data.period.start) === formatMonth(data.period.end) ? formatMonth(data.period.start) : `${formatMonth(data.period.start)} – ${formatMonth(data.period.end)}`;
   const demo = data.mode === 'demo';
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
