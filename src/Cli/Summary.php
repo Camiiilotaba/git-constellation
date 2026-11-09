@@ -24,7 +24,7 @@ final class Summary
 
         return implode("\n", [
             "LIVE — GitHub statistics for {$snapshot->login}",
-            "Period (UTC): {$period->start} .. {$period->end}",
+            'Period (UTC): ' . ($snapshot->period === 'all-time' ? 'all-time, ' : '') . "{$period->start} .. {$period->end}",
             'Generated at: ' . $snapshot->generatedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             "Contributions (calendar): {$metrics->totalContributions}",
             "Private contributions: {$snapshot->privateContributions->value} (restricted count: {$snapshot->restrictedContributions}, own account: {$ownAccount})",

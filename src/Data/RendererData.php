@@ -11,7 +11,7 @@ use GitConstellation\Statistics\ContributionMetrics;
 
 final class RendererData
 {
-    /** @return array<string, mixed> Exact schemaVersion 2 handoff to the TypeScript renderer. */
+    /** @return array<string, mixed> Exact schemaVersion 3 handoff to the TypeScript renderer. */
     public static function fromDemo(Configuration $config, DemoFixture $fixture, DateTimeImmutable $generatedAt): array
     {
         return self::assemble(
@@ -20,6 +20,7 @@ final class RendererData
             username: $config->username,
             config: $config,
             calendar: $fixture->calendar,
+            periodKind: 'last-year',
             pullRequests: $fixture->pullRequests,
             codeReviews: $fixture->codeReviews,
             languages: $fixture->languages,
@@ -29,7 +30,7 @@ final class RendererData
         );
     }
 
-    /** @return array<string, mixed> Exact schemaVersion 2 handoff to the TypeScript renderer. */
+    /** @return array<string, mixed> Exact schemaVersion 3 handoff to the TypeScript renderer. */
     public static function fromLive(Configuration $config, LiveSnapshot $snapshot): array
     {
         return self::assemble(
@@ -38,6 +39,7 @@ final class RendererData
             username: $snapshot->login,
             config: $config,
             calendar: $snapshot->calendar,
+            periodKind: $snapshot->period,
             pullRequests: $snapshot->pullRequests,
             codeReviews: $snapshot->codeReviews,
             languages: $snapshot->languages,
@@ -65,6 +67,7 @@ final class RendererData
         string $username,
         Configuration $config,
         ContributionCalendar $calendar,
+        string $periodKind,
         int $pullRequests,
         int $codeReviews,
         array $languages,
@@ -75,7 +78,7 @@ final class RendererData
         $metrics = ContributionMetrics::calculate($calendar);
 
         return [
-            'schemaVersion' => 2,
+            'schemaVersion' => 3,
             'mode' => $mode,
             'generatedAt' => $generatedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'profile' => [
@@ -85,7 +88,12 @@ final class RendererData
                 'stack' => $config->stack,
             ],
             'theme' => ['cyan' => $config->cyan, 'green' => $config->green],
-            'period' => ['start' => $calendar->start, 'end' => $calendar->end],
+            'period' => [
+                'start' => $calendar->start,
+                'end' => $calendar->end,
+                'kind' => $periodKind,
+                'granularity' => $periodKind === 'all-time' ? 'month' : 'week',
+            ],
             'days' => $calendar->days,
             'metrics' => [
                 'totalContributions' => $metrics->totalContributions,

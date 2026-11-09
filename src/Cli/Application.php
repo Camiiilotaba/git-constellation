@@ -53,7 +53,8 @@ Usage:
   php bin/constellation --help
 
 --demo  Simulated statistics from a fixed fixture; no API calls, no credentials.
---live  Real GitHub statistics for the configured username over the trailing year.
+--live  Real GitHub statistics for the configured username: all-time by default
+        (one query per contribution year), or the trailing year with "period": "last-year".
         Copy config/live.example.json to config/local.json and edit it first.
         Needs GITHUB_TOKEN (environment or .env) with the read:user scope only.
         Any fetch failure exits 1 and writes nothing; there is no fallback to demo data.
@@ -102,19 +103,15 @@ HELP);
     private function prepareLive(Configuration $config, DateTimeImmutable $now, string $input): string
     {
         $environment = Environment::load($this->projectRoot, $this->environment ?? getenv());
-        $period = Period::trailingYear($now);
         $client = new GraphQlClient($this->http ?? HttpClient::create(), $environment->githubToken);
         $statistics = new LiveStatistics($client, new ContributionsQuery($client), new RepositoriesQuery($client));
 
         // Nothing is written until the whole fetch succeeded, so a failed run never leaves a half-valid build/data.json.
         try {
-            $snapshot = $statistics->collect(
-                $config->username,
-                $period,
-                $now,
-                $config->excludeLanguages ?? LanguageRanking::DEFAULT_EXCLUDED,
-                $config->languages,
-            );
+            $excludedLanguages = $config->excludeLanguages ?? LanguageRanking::DEFAULT_EXCLUDED;
+            $snapshot = $config->period === 'all-time'
+                ? $statistics->collectAllTime($config->username, $now, $excludedLanguages, $config->languages)
+                : $statistics->collect($config->username, Period::trailingYear($now), $now, $excludedLanguages, $config->languages);
         } catch (GitHubApiException $exception) {
             if ($exception->kind !== GitHubErrorKind::Auth) {
                 throw $exception;
@@ -122,7 +119,7 @@ HELP);
             throw new GitHubApiException($exception->kind, $exception->getMessage() . " (token source: {$environment->source})", $exception);
         }
         JsonFile::write($input, RendererData::fromLive($config, $snapshot));
-        fwrite(STDOUT, Summary::format($snapshot, $period));
+        fwrite(STDOUT, Summary::format($snapshot, Period::between($snapshot->calendar->start, $snapshot->calendar->end)));
 
         return $environment->githubToken;
     }

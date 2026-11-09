@@ -25,7 +25,7 @@ final class RendererDataLiveTest extends TestCase
         return Configuration::fromArray(JsonFile::read(dirname(__DIR__, 3) . '/config/demo.json'));
     }
 
-    private function snapshot(PrivateContributions $state = PrivateContributions::Included): LiveSnapshot
+    private function snapshot(PrivateContributions $state = PrivateContributions::Included, string $period = 'last-year'): LiveSnapshot
     {
         $calendar = ContributionCalendar::fromArray(
             ['start' => '2026-11-01', 'end' => '2026-11-04'],
@@ -51,21 +51,23 @@ final class RendererDataLiveTest extends TestCase
             new DateTimeImmutable('2026-11-06T14:00:00+02:00'),
             4990,
             ['read:user'],
+            'ranking',
+            $period,
         );
     }
 
-    public function testFromLiveProducesVersionTwoContract(): void
+    public function testFromLiveProducesVersionThreeContract(): void
     {
         $snapshot = $this->snapshot();
         $data = RendererData::fromLive($this->config(), $snapshot);
         $metrics = ContributionMetrics::calculate($snapshot->calendar);
 
         self::assertSame(self::KEYS, array_keys($data));
-        self::assertSame(2, $data['schemaVersion']);
+        self::assertSame(3, $data['schemaVersion']);
         self::assertSame('live', $data['mode']);
         self::assertSame('2026-11-06T12:00:00Z', $data['generatedAt']);
         self::assertSame('Octo-Sample', $data['profile']['username']);
-        self::assertSame(['start' => '2026-11-01', 'end' => '2026-11-04'], $data['period']);
+        self::assertSame(['start' => '2026-11-01', 'end' => '2026-11-04', 'kind' => 'last-year', 'granularity' => 'week'], $data['period']);
         self::assertSame($snapshot->calendar->days, $data['days']);
         self::assertSame([
             'totalContributions' => $metrics->totalContributions,
@@ -85,6 +87,13 @@ final class RendererDataLiveTest extends TestCase
             'visibleTotals' => ['commits' => 612, 'issues' => 14, 'pullRequests' => 58, 'reviews' => 33, 'repositories' => 4],
             'repositoriesScanned' => 8,
         ], $data['source']);
+    }
+
+    public function testAllTimeUsesMonthlyGranularity(): void
+    {
+        $data = RendererData::fromLive($this->config(), $this->snapshot(PrivateContributions::Included, 'all-time'));
+
+        self::assertSame(['start' => '2026-11-01', 'end' => '2026-11-04', 'kind' => 'all-time', 'granularity' => 'month'], $data['period']);
     }
 
     public function testFromLiveStateValuesSerializeAsStrings(): void

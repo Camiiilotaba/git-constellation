@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 final class SummaryTest extends TestCase
 {
     /** @param list<array{name: string, repositories: int, color: string}> $languages @param list<string> $scopes */
-    private function snapshot(array $languages, array $scopes, string $source = 'ranking'): LiveSnapshot
+    private function snapshot(array $languages, array $scopes, string $source = 'ranking', string $period = 'last-year'): LiveSnapshot
     {
         $calendar = ContributionCalendar::fromArray(
             ['start' => '2026-01-01', 'end' => '2026-01-05'],
@@ -44,6 +44,7 @@ final class SummaryTest extends TestCase
             4987,
             $scopes,
             $source,
+            $period,
         );
     }
 
@@ -97,5 +98,13 @@ final class SummaryTest extends TestCase
     public function testMissingScopesPrintsNotReported(): void
     {
         self::assertStringContainsString("Token scopes: (not reported)\n", Summary::format($this->snapshot([], []), $this->period()));
+    }
+
+    public function testAllTimePeriodIsLabelled(): void
+    {
+        self::assertStringContainsString(
+            "Period (UTC): all-time, 2026-01-01 .. 2026-01-05\n",
+            Summary::format($this->snapshot([], ['read:user'], 'ranking', 'all-time'), Period::between('2026-01-01', '2026-01-05')),
+        );
     }
 }

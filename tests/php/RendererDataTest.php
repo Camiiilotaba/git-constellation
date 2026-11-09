@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RendererDataTest extends TestCase
 {
-    public function testCommittedFixtureProducesCompleteVersionTwoContract(): void
+    public function testCommittedFixtureProducesCompleteVersionThreeContract(): void
     {
         $root = dirname(__DIR__, 2);
         $config = Configuration::fromArray(JsonFile::read($root . '/config/demo.json'));
@@ -28,14 +28,14 @@ final class RendererDataTest extends TestCase
         );
 
         self::assertSame(['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'languagesSource', 'privateContributions', 'source'], array_keys($data));
-        self::assertSame(2, $data['schemaVersion']);
+        self::assertSame(3, $data['schemaVersion']);
         self::assertSame('demo', $data['mode']);
         self::assertSame('2026-11-06T12:00:00Z', $data['generatedAt']);
         self::assertSame('excluded', $data['privateContributions']);
         self::assertNull($data['source']);
         self::assertSame(['username' => 'demo-developer', 'name' => 'Alex Morgan', 'role' => 'Backend Developer', 'stack' => 'PHP / TypeScript'], $data['profile']);
         self::assertSame(['cyan' => '#30e8ef', 'green' => '#52f5a0'], $data['theme']);
-        self::assertSame(['start' => '2025-11-01', 'end' => '2026-10-31'], $data['period']);
+        self::assertSame(['start' => '2025-11-01', 'end' => '2026-10-31', 'kind' => 'last-year', 'granularity' => 'week'], $data['period']);
         self::assertCount(365, $data['days']);
         self::assertSame(['totalContributions' => 1351, 'activeDays' => 327, 'longestStreak' => 20, 'pullRequests' => 136, 'codeReviews' => 84], $data['metrics']);
         self::assertSame(['PHP', 'JavaScript', 'TypeScript', 'Python', 'SQL'], array_column($data['languages'], 'name'));
