@@ -29,5 +29,7 @@ final readonly class LiveSnapshot
         public int $rateLimitRemaining,
         public array $tokenScopes,
         public string $languagesSource = 'ranking',
+        /** 'all-time' or 'last-year'. */
+        public string $period = 'last-year',
     ) {}
 }

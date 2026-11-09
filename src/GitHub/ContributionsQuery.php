@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GitConstellation\GitHub;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use GitConstellation\Data\ContributionCalendar;
 use GitConstellation\Data\Period;
 use GitConstellation\Statistics\VisibleTotals;
@@ -35,7 +37,59 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 }
 GRAPHQL;
 
+    public const string YEARS_QUERY = <<<'GRAPHQL'
+query($login: String!) {
+  user(login: $login) {
+    login
+    contributionsCollection { contributionYears }
+  }
+}
+GRAPHQL;
+
+    private const int FIRST_GITHUB_YEAR = 2008;
+
     public function __construct(private GraphQlClient $client) {}
+
+    /**
+     * One query per calendar year, oldest first, from the first contribution year to today (UTC). Years
+     * without contributions inside that range are queried too, so the joined calendar has no invented gaps.
+     *
+     * @return non-empty-list<ContributionsResult>
+     */
+    public function fetchAllYears(string $login, DateTimeImmutable $now): array
+    {
+        $today = $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d');
+        $currentYear = (int) substr($today, 0, 4);
+        $years = $this->contributionYears($login, $currentYear);
+        $results = [];
+        for ($year = $years === [] ? $currentYear : min($years); $year <= $currentYear; ++$year) {
+            $results[] = $this->fetch($login, Period::between("{$year}-01-01", $year === $currentYear ? $today : "{$year}-12-31"));
+        }
+
+        return $results;
+    }
+
+    /** @return list<int> */
+    private function contributionYears(string $login, int $currentYear): array
+    {
+        $data = $this->client->query(self::YEARS_QUERY, ['login' => $login]);
+        if (!array_key_exists('user', $data) || $data['user'] === null) {
+            throw new GitHubApiException(GitHubErrorKind::NotFound, "GitHub user not found: {$login}");
+        }
+        $collection = $this->object($this->object($data, 'user', 'user'), 'contributionsCollection', 'contributionsCollection');
+        $years = $collection['contributionYears'] ?? null;
+        if (!is_array($years) || !array_is_list($years)) {
+            throw $this->invalid('contributionsCollection.contributionYears');
+        }
+        foreach ($years as $year) {
+            if (!is_int($year) || $year < self::FIRST_GITHUB_YEAR) {
+                throw $this->invalid('contributionsCollection.contributionYears');
+            }
+        }
+
+        // A year after today's UTC year (a time-zone edge) holds nothing up to today.
+        return array_values(array_filter($years, fn (int $year): bool => $year <= $currentYear));
+    }
 
     public function fetch(string $login, Period $period): ContributionsResult
     {

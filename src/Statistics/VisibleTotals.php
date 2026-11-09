@@ -20,6 +20,17 @@ final readonly class VisibleTotals
         }
     }
 
+    public function plus(self $other): self
+    {
+        return new self(
+            $this->commits + $other->commits,
+            $this->issues + $other->issues,
+            $this->pullRequests + $other->pullRequests,
+            $this->reviews + $other->reviews,
+            $this->repositories + $other->repositories,
+        );
+    }
+
     public function sum(): int
     {
         return $this->commits + $this->issues + $this->pullRequests + $this->reviews + $this->repositories;
