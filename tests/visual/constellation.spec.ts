@@ -55,7 +55,7 @@ test('demo matches the panoramic screenshot baseline entirely offline', async ({
 
 test('live mode with a manually selected language list', async ({ page }) => {
   await render(page, liveData({ languagesSource: 'manual', languages: manualLanguages() }));
-  await expect(page.locator('.language-criterion')).toHaveText('Selected by the developer');
+  await expect(page.locator('.language-criterion')).toHaveCount(0);
   await expect(page.locator('.languages')).toHaveAttribute('aria-label', 'Languages selected by the developer');
   await expect(page.locator('.language-name')).toHaveText(['TypeScript', 'PHP', 'Rust']);
   await expect(page.locator('main')).toHaveScreenshot('live-manual-languages.png');

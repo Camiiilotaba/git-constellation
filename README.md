@@ -179,7 +179,7 @@ To show exactly the languages you want instead of the ranking, add `languages` t
 "languages": ["PHP", { "name": "TypeScript", "color": "#3178c6" }]
 ```
 
-`excludeLanguages` has no effect when a manual `languages` list is set. A colour GitHub reported for that language wins; otherwise your colour is used, then `#8b949e`. The footnote under the list reads `Selected by the developer`, and the `data.json` field `languagesSource` is `manual`. This works in demo and live modes. Names are unique ignoring case.
+`excludeLanguages` has no effect when a manual `languages` list is set. A colour GitHub reported for that language wins; otherwise your colour is used, then `#8b949e`. The image shows no footnote under the list, and the `data.json` field `languagesSource` is `manual`. This works in demo and live modes. Names are unique ignoring case.
 
 ### Failure behaviour
 

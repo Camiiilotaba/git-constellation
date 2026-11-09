@@ -195,7 +195,7 @@ Non-programming languages are excluded by default: CSS, SCSS, Sass, Less, Stylus
 
 ### Manual language list
 
-The optional `languages` config key (1 to 5 entries, each a name or `{ "name": ..., "color": "#rrggbb" }`, names unique ignoring case) replaces the ranking in demo and live modes. The order is kept. A colour GitHub reported (live) or the fixture gave (demo) wins over the configured one; without either, `#8b949e`. The entries have `repositories: null`, `languagesSource` is `manual`, the image footnote reads `Selected by the developer`, and the CLI line reads `Top Languages (selected): PHP, TypeScript`.
+The optional `languages` config key (1 to 5 entries, each a name or `{ "name": ..., "color": "#rrggbb" }`, names unique ignoring case) replaces the ranking in demo and live modes. The order is kept. A colour GitHub reported (live) or the fixture gave (demo) wins over the configured one; without either, `#8b949e`. The entries have `repositories: null`, `languagesSource` is `manual`, the image shows no footnote under the list, and the CLI line reads `Top Languages (selected): PHP, TypeScript`.
 
 Eligible repositories are public, not forks and not archived, and the user owns them, collaborates on them or can reach them through an organization membership. Query B filters affiliation, public and non-fork; the ranking additionally skips archived ones.
 

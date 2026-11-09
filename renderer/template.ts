@@ -92,6 +92,7 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const demo = data.mode === 'demo';
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
   const manual = data.languagesSource === 'manual';
+  // In manual mode the list is chosen by each user via the `languages` config key and can be adjusted freely.
   const languages = data.languages;
   const languagesNote = manual ? 'Languages were selected by the developer.' : 'Language ranking counts eligible public repositories, including secondary languages.';
   return `<!doctype html>
@@ -111,7 +112,7 @@ ${assets.stylesheet}
 <section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-mark">${icon('contribution')}</div><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon('calendar')}<span>${compactPeriod}</span></div></div></section>
 ${constellation(data)}
 <aside class="languages" aria-label="${manual ? 'Languages selected by the developer' : 'Languages ranked by public repository count'}"><h2>${icon('code')}Top Languages</h2>
-${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(manual ? language.name : `${language.name}: ${language.repositories} public repositories`)}"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol><p class="language-criterion">${manual ? 'Selected by the developer' : 'By public repository count'}</p>` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>
+${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(manual ? language.name : `${language.name}: ${language.repositories} public repositories`)}"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol>${manual ? '' : '<p class="language-criterion">By public repository count</p>'}` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>
 <div class="metrics">
 ${metric('Pull Requests', metrics.pullRequests, 'branch', activityTitle)}
 ${metric('Code Reviews', metrics.codeReviews, 'review', activityTitle)}

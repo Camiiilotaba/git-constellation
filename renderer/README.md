@@ -54,7 +54,7 @@ The language panel is rendered in the order of `languages` (PHP decides the orde
 
 | Element | `ranking` | `manual` |
 | --- | --- | --- |
-| Footnote | `By public repository count` | `Selected by the developer` |
+| Footnote | `By public repository count` | none |
 | Panel `aria-label` | `Languages ranked by public repository count` | `Languages selected by the developer` |
 | Item title | `<name>: <n> public repositories` | `<name>` |
 

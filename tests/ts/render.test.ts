@@ -46,12 +46,13 @@ describe('HTML composition', () => {
     expect(html.indexOf('>Beta</span>')).toBeLessThan(html.indexOf('>Alpha</span>'));
   });
 
-  it('keeps a manual language list in the given order with its own footnote and titles', () => {
+  it('keeps a manual language list in the given order without a footnote, with its own titles', () => {
     const data = liveData({ languagesSource: 'manual', languages: manualLanguages() });
     const html = renderHtml(data, assets);
     expect(html.indexOf('>TypeScript</span>')).toBeLessThan(html.indexOf('>PHP</span>'));
     expect(html.indexOf('>PHP</span>')).toBeLessThan(html.indexOf('>Rust</span>'));
-    expect(html).toContain('<p class="language-criterion">Selected by the developer</p>');
+    expect(html).not.toContain('<p class="language-criterion"');
+    expect(html).not.toContain('Selected by the developer');
     expect(html).toContain('aria-label="Languages selected by the developer"');
     expect(html).toContain('<li title="TypeScript">');
     expect(html).not.toContain('By public repository count');
