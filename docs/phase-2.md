@@ -190,7 +190,7 @@ With `"period": "all-time"` (the default; `"last-year"` selects the rolling peri
 - The yearly calendars are joined (contiguous, no duplicates) and start at the first day with a count above 0. With no contributions at all, the period is today only, with a count of 0, and the image shows the zero-activity state.
 - Totals, pull requests, reviews, restricted counts and the visible totals are summed. Active days and the longest streak are computed on the joined calendar, so a streak continues across year boundaries.
 - Private state: each year is decided by the rule above with its own in-year sum; the result is `included` if any year is `included`, `excluded` only if every year is `excluded`, otherwise `unknown`.
-- The subtitle reads `Since <Mon YYYY>` (the month of the first contribution). The constellation shows one star per month up to the last complete month (the current month counts in the totals but is drawn only when fewer than two months would remain), with a year label at each January.
+- The subtitle reads `Since <Mon YYYY>` (the month of the first contribution), or `No contributions yet` when there are none. GitHub's `contributionYears` may be timezone-dependent, so a very first contribution near a year boundary could fall outside the queried UTC years; this is a rare undercount and never invents data. The constellation shows one star per month up to the last complete month (the current month counts in the totals but is drawn only when fewer than two months would remain), with a year label at each January.
 - Rate-limit cost: one contribution query per year in that range plus the years query, instead of one.
 
 ## Rolling period (`"period": "last-year"`)
