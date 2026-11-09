@@ -1,18 +1,15 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-09
+Last updated: 2026-11-09 (Phase 2 closed)
 
 ## Current state
 
 - Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
-- `main` holds the approved Phase 1 (commit `58caed4`).
-- Branch `phase-2-github-integration` holds Phase 2: live GitHub mode, fully implemented, task-reviewed and whole-branch-reviewed (see `docs/superpowers/plans/2026-11-06-phase2-github-integration.md` and the spec next to it). Not merged into `main` yet.
-- Phase 2 **code is complete and verified against the owner's real account** (spike done, `docs/phase-2.md` "Real-API check" filled, live image generated at `dist/live.png`). Open:
-  1. Owner's visual approval of `dist/live.png` (1920 px and README width).
-  2. After approval: merge `phase-2-github-integration` into `main` locally (no push unless asked).
-  3. Owner's explicit approval before anything of Phase 3 starts.
-- Known, accepted limitation: the API calendar total is about 3% below the profile's "contributions in the last year" (activity in private organization repositories the API does not return to the token). Investigated and documented in `docs/phase-2.md` ("Known differences with the GitHub profile"); the image shows the API figure, never estimates or profile scraping.
-- Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each task reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized, no push.
+- Branching model (owner, 2026-11-09): `main` holds released states only; `develop` is the integration branch; work happens on `feature/*` branches merged into `develop` with `--no-ff`; `develop` is merged into `main` with `--no-ff` when a phase is approved.
+- Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
+- Phase 3 (GitHub Actions Quick Start) is next, on `feature/phase-3-actions` from `develop`.
+- Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
+- Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
 ## Product and agreed limits
 
@@ -28,12 +25,13 @@ Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@l
 
 - `--demo` unchanged (fixture, no network). `--live` queries GitHub GraphQL for the login in the config (`config/local.json` by default; template `config/live.example.json`).
 - Token: `GITHUB_TOKEN` from the process environment, else `<root>/.env` (parsed, never exported). Classic token with only `read:user`. A token with the `repo` scope is rejected. Fine-grained tokens work but give public-only PR/review counts; classic `read:user` is recommended.
-- Period: rolling 365 days ending today UTC (366 when the span contains Feb 29 and ends after it).
-- Metrics: daily calendar, total, active days and longest streak include anonymized private counts when the profile owner shares them; Pull Requests and Code Reviews count only token-visible activity; languages from public, non-fork, non-archived repositories the user owns, collaborates on or reaches through an organization, counted by repository presence, top 5, no percentages. For the token owner's own account, totals, PRs and reviews include private activity as counts (spike verified).
+- Period (config `period`): `all-time` by default — one `contributionYears` query plus one query per calendar year since the first contribution; subtitle `Since <Mon YYYY>`; monthly constellation up to the last complete month (the month in progress counts in totals, is not drawn); year labels at each January, none for a partial first year. `last-year` keeps the rolling 365/366-day weekly view.
+- Metrics: daily calendar, total, active days and longest streak include anonymized private counts when the profile owner shares them; Pull Requests and Code Reviews count only token-visible activity; languages from public, non-fork, non-archived repositories the user owns, collaborates on or reaches through an organization, non-programming languages excluded (`excludeLanguages`), ranked by repository count then code size, top 5, no percentages; or a manual `languages` list in the config (the owner uses PHP, TypeScript, JavaScript, Dart, SQL), shown without footnote. For the token owner's own account, totals, PRs and reviews include private activity as counts (spike verified).
 - Private-contributions state: `included` on explicit signals only (restricted count > 0, `hasAnyRestrictedContributions`, or the token belongs to the queried account); `excluded` only with no signal and exact arithmetic; otherwise `unknown`. The image subtitle shows only the period; the state lives in `data.json`, the CLI summary and the screen-reader text.
 - Failures (auth, rate limit, network, GraphQL errors, malformed data, unknown user, > 2000 repos) exit 1, print `Error:` to STDERR, write nothing, never fall back to demo. The token never appears in output, files, exceptions or the Node child process (environment filtered by name and by value).
 - Live output defaults to `dist/live.png` (gitignored); live mode refuses to write `dist/constellation.png`, the committed demo image.
-- `build/data.json` is schema v2, shared by demo and live (`mode`, `generatedAt`, `privateContributions`, `source`).
+- `build/data.json` is schema v3, shared by demo and live (`mode`, `generatedAt`, `period.kind`/`granularity`, `privateContributions`, `languagesSource`, `source`).
+- Background figure redrawn 2026-11-09 (owner chose variant C3: leaning forward, readable laptop).
 
 ## Commands
 
@@ -51,11 +49,10 @@ node build/renderer/review.js                  # comparison gallery in build/rev
 
 Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN=<login> ./vendor/bin/phpunit --group integration`.
 
-## Verification already done (2026-11-06, branch head `12df6c7`)
+## Verification (2026-11-09)
 
-- `composer validate --strict` OK; PHPUnit 153 tests / 353 assertions (1 skipped: integration); Vitest 63; Playwright 8 (snapshots updated once, deliberately, for the approved adjustments; `live-darwin.png` and `live-readme-830-darwin.png` added).
-- Per-task independent reviews: 10 tasks, 2 needed one fix round each (Tasks 5 and 9). Whole-branch review by Opus: "with fixes"; one fix wave of nine items applied and re-reviewed clean. Two cosmetic findings parked (text-only path comparison in the demo-image guard; NotFound message without prefix).
-- Real GitHub API: **not exercised yet** (no token in the session).
+- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
 ## Review artifacts
 
@@ -66,9 +63,5 @@ Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN
 
 ## How to resume in a new session
 
-1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline`.
-2. If `.env` exists at the root: run the read-only spike (a throwaway script that prints only aggregated counters — never the token), fill the "Real-API check" in `docs/phase-2.md`, adjust `ContributionsQuery::assertCalendarTotal` only if GitHub's total matches neither sum, then run `php bin/constellation --live` and the manual verification steps.
-3. Show the owner `dist/live.png` (1920 px and 830 px) and the verification summary; wait for explicit approval.
-4. Only after approval: merge `phase-2-github-integration` into `main` locally (no push unless asked) and start Phase 3 (GitHub Actions Quick Start), respecting the privacy rules above.
-
-Short prompt for a new session: "Read `CONTINUITY.md` at the root and continue Git Constellation from that state. Phase 2 code is complete on branch `phase-2-github-integration`; the real-API spike and run are pending my `.env`. Delegate implementation to Opus or lower models and review the result yourself. Everything in the repo in English. Do not start Phase 3 without my explicit approval."
+1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline --graph -15`.
+2. Continue Phase 3 on `feature/phase-3-actions` (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.
