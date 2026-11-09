@@ -50,7 +50,13 @@ filters credential-like variables from this process's environment.
 | Empty languages text | `No eligible public repositories in this example.` | `No eligible public repositories.` |
 | Accessible description | states it is a demonstration with simulated data | states live statistics, the generation time, one privacy sentence (`included`: Totals include private activity as anonymized counts. `excluded`: Totals cover public activity only. `unknown`: Totals cover activity visible to the token.) and that PR and review counts may exclude private activity |
 
-The language panel always says `By public repository count`.
+The language panel is rendered in the order of `languages` (PHP decides the order). It depends on `languagesSource`:
+
+| Element | `ranking` | `manual` |
+| --- | --- | --- |
+| Footnote | `By public repository count` | `Selected by the developer` |
+| Panel `aria-label` | `Languages ranked by public repository count` | `Languages selected by the developer` |
+| Item title | `<name>: <n> public repositories` | `<name>` |
 
 ## Responsibilities
 

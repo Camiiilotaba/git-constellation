@@ -92,7 +92,7 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const demo = data.mode === 'demo';
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
   const manual = data.languagesSource === 'manual';
-  const languages = manual ? data.languages : [...data.languages].sort((a, b) => (b.repositories ?? 0) - (a.repositories ?? 0) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const languages = data.languages;
   const languagesNote = manual ? 'Languages were selected by the developer.' : 'Language ranking counts eligible public repositories, including secondary languages.';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>

@@ -34,7 +34,7 @@ describe('HTML composition', () => {
     expect(html).toContain('No contributions in this example period');
   });
 
-  it('orders public repository counts with a deterministic name tie-break', () => {
+  it('renders ranked languages in the given order without re-sorting', () => {
     const data = shortData();
     data.languages = [
       { name: 'Zeta', repositories: 2, color: '#abcdef' },
@@ -42,9 +42,8 @@ describe('HTML composition', () => {
       { name: 'Alpha', repositories: 2, color: '#abcdef' },
     ];
     const html = renderHtml(data, assets);
+    expect(html.indexOf('>Zeta</span>')).toBeLessThan(html.indexOf('>Beta</span>'));
     expect(html.indexOf('>Beta</span>')).toBeLessThan(html.indexOf('>Alpha</span>'));
-    expect(html.indexOf('>Alpha</span>')).toBeLessThan(html.indexOf('>Zeta</span>'));
-    expect(data.languages[0]!.name).toBe('Zeta');
   });
 
   it('keeps a manual language list in the given order with its own footnote and titles', () => {

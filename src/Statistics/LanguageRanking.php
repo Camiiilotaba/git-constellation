@@ -92,6 +92,7 @@ final class LanguageRanking
             foreach (is_array($repository) ? ($repository['languages'] ?? []) : [] as $language) {
                 // The fallback colour stands in for "GitHub reported none", so a colour given by the developer may still apply.
                 if (is_array($language) && is_string($language['name'] ?? null) && is_string($language['color'] ?? null)
+                    && preg_match('/^#[a-fA-F0-9]{6}$/D', $language['color']) === 1
                     && strtolower($language['color']) !== self::FALLBACK_COLOR) {
                     $reported[mb_strtolower(trim($language['name']))] ??= strtolower($language['color']);
                 }
