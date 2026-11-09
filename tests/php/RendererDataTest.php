@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace GitConstellation\Tests;
 
+use DateTimeImmutable;
 use GitConstellation\Config\Configuration;
 use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\RendererData;
+use GitConstellation\Statistics\LanguageRanking;
 use GitConstellation\Support\IntegerRange;
 use GitConstellation\Support\JsonFile;
 use InvalidArgumentException;
@@ -15,25 +17,77 @@ use PHPUnit\Framework\TestCase;
 
 final class RendererDataTest extends TestCase
 {
-    public function testCommittedFixtureProducesCompleteVersionOneContract(): void
+    public function testCommittedFixtureProducesCompleteVersionThreeContract(): void
     {
         $root = dirname(__DIR__, 2);
         $config = Configuration::fromArray(JsonFile::read($root . '/config/demo.json'));
-        $data = RendererData::fromDemo($config, DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')));
+        $data = RendererData::fromDemo(
+            $config,
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')),
+            new DateTimeImmutable('2026-11-06T12:00:00Z'),
+        );
 
-        self::assertSame(['schemaVersion', 'mode', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'privateContributionsIncluded'], array_keys($data));
-        self::assertSame(1, $data['schemaVersion']);
+        self::assertSame(['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'languagesSource', 'privateContributions', 'source'], array_keys($data));
+        self::assertSame(3, $data['schemaVersion']);
         self::assertSame('demo', $data['mode']);
-        self::assertFalse($data['privateContributionsIncluded']);
+        self::assertSame('2026-11-06T12:00:00Z', $data['generatedAt']);
+        self::assertSame('excluded', $data['privateContributions']);
+        self::assertNull($data['source']);
         self::assertSame(['username' => 'demo-developer', 'name' => 'Alex Morgan', 'role' => 'Backend Developer', 'stack' => 'PHP / TypeScript'], $data['profile']);
         self::assertSame(['cyan' => '#30e8ef', 'green' => '#52f5a0'], $data['theme']);
-        self::assertSame(['start' => '2025-11-01', 'end' => '2026-10-31'], $data['period']);
+        self::assertSame(['start' => '2025-11-01', 'end' => '2026-10-31', 'kind' => 'last-year', 'granularity' => 'week'], $data['period']);
         self::assertCount(365, $data['days']);
         self::assertSame(['totalContributions' => 1351, 'activeDays' => 327, 'longestStreak' => 20, 'pullRequests' => 136, 'codeReviews' => 84], $data['metrics']);
         self::assertSame(['PHP', 'JavaScript', 'TypeScript', 'Python', 'SQL'], array_column($data['languages'], 'name'));
         self::assertSame([8, 6, 4, 3, 2], array_column($data['languages'], 'repositories'));
+        self::assertSame('ranking', $data['languagesSource']);
         self::assertArrayNotHasKey('repositories', $data);
         self::assertArrayNotHasKey('provenance', $data);
+    }
+
+    public function testManualLanguagesKeepOrderAndResolveColorsFromTheFixture(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $base = JsonFile::read($root . '/config/demo.json');
+        $config = Configuration::fromArray($base + ['languages' => ['SQL', ['name' => 'Rust', 'color' => '#DEA584'], 'Zig', 'php']]);
+        $data = RendererData::fromDemo(
+            $config,
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json'), LanguageRanking::DEFAULT_EXCLUDED, $config->languages),
+            new DateTimeImmutable('2026-11-06T12:00:00Z'),
+        );
+
+        self::assertSame('manual', $data['languagesSource']);
+        self::assertSame(['SQL', 'Rust', 'Zig', 'php'], array_column($data['languages'], 'name'));
+        self::assertSame([null, null, null, null], array_column($data['languages'], 'repositories'));
+        self::assertSame('#dea584', $data['languages'][1]['color']);
+        self::assertSame('#8b949e', $data['languages'][2]['color']);
+        self::assertSame(array_column($data['languages'], 'color')[3], $this->demoColor('PHP', $root));
+    }
+
+    private function demoColor(string $name, string $root): string
+    {
+        $fixture = JsonFile::read($root . '/fixtures/demo.json');
+        foreach ($fixture['repositories'] as $repository) {
+            foreach ($repository['languages'] as $language) {
+                if ($language['name'] === $name) {
+                    return strtolower($language['color']);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    public function testGeneratedAtIsNormalizedToUtc(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $data = RendererData::fromDemo(
+            Configuration::fromArray(JsonFile::read($root . '/config/demo.json')),
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json')),
+            new DateTimeImmutable('2026-11-06T08:00:00-05:00'),
+        );
+
+        self::assertSame('2026-11-06T13:00:00Z', $data['generatedAt']);
     }
 
     public function testUnknownOptionalMetricsRemainNullAndSafeLimitIsAccepted(): void

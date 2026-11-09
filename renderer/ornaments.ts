@@ -5,7 +5,7 @@ interface Position { x: number; y: number }
 export interface DecorativeBranch { vertices: Position[] }
 
 /** Select isolated local maxima, treating a flat plateau as one event. */
-export function flareIndices(points: readonly WeeklyPoint[]): Set<number> {
+export function flareIndices(points: readonly WeeklyPoint[], minimumGap = 150): Set<number> {
   const peak = Math.max(0, ...points.map(point => point.count));
   if (!peak) return new Set();
   const candidates: number[] = [];
@@ -21,7 +21,7 @@ export function flareIndices(points: readonly WeeklyPoint[]): Set<number> {
   const selected: number[] = [];
   candidates.sort((a, b) => points[b]!.count - points[a]!.count || a - b);
   for (const index of candidates) {
-    if (selected.every(other => Math.abs(points[index]!.x - points[other]!.x) >= 150)) selected.push(index);
+    if (selected.every(other => Math.abs(points[index]!.x - points[other]!.x) >= minimumGap)) selected.push(index);
     if (selected.length === 5) break;
   }
   return new Set(selected);

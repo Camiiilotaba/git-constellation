@@ -12,6 +12,72 @@ use PHPUnit\Framework\TestCase;
 
 final class ContributionCalendarTest extends TestCase
 {
+    /** @param list<int> $counts */
+    private static function calendar(string $start, array $counts): ContributionCalendar
+    {
+        $days = [];
+        $date = new \DateTimeImmutable($start);
+        foreach ($counts as $count) {
+            $days[] = ['date' => $date->format('Y-m-d'), 'count' => $count];
+            $date = $date->modify('+1 day');
+        }
+
+        return ContributionCalendar::fromArray(['start' => $start, 'end' => end($days)['date']], $days);
+    }
+
+    public function testConcatenateJoinsContiguousCalendarsBeyondOneYear(): void
+    {
+        $first = self::calendar('2024-12-30', [1, 2]);
+        $long = ContributionCalendar::concatenate([
+            $first,
+            ContributionCalendar::fromArray(['start' => '2025-01-01', 'end' => '2025-12-31'], array_map(
+                fn (int $offset): array => ['date' => (new \DateTimeImmutable('2025-01-01'))->modify("+{$offset} day")->format('Y-m-d'), 'count' => 0],
+                range(0, 364),
+            )),
+            self::calendar('2026-01-01', [3]),
+        ]);
+
+        self::assertSame('2024-12-30', $long->start);
+        self::assertSame('2026-01-01', $long->end);
+        self::assertCount(368, $long->days);
+        self::assertSame(['date' => '2026-01-01', 'count' => 3], $long->days[367]);
+    }
+
+    public function testConcatenateRejectsGaps(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        ContributionCalendar::concatenate([self::calendar('2025-12-30', [1]), self::calendar('2026-01-01', [1])]);
+    }
+
+    public function testConcatenateRejectsOverlaps(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        ContributionCalendar::concatenate([self::calendar('2025-12-30', [1, 1]), self::calendar('2025-12-31', [1])]);
+    }
+
+    public function testConcatenateRejectsAnEmptyList(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        ContributionCalendar::concatenate([]);
+    }
+
+    public function testFromFirstContributionDropsLeadingEmptyDays(): void
+    {
+        $calendar = self::calendar('2023-10-21', [0, 0, 4, 0, 1])->fromFirstContribution();
+
+        self::assertSame('2023-10-23', $calendar->start);
+        self::assertSame('2023-10-25', $calendar->end);
+        self::assertSame([4, 0, 1], array_column($calendar->days, 'count'));
+    }
+
+    public function testFromFirstContributionWithoutActivityKeepsOnlyTheLastDay(): void
+    {
+        $calendar = self::calendar('2026-01-01', [0, 0, 0])->fromFirstContribution();
+
+        self::assertSame('2026-01-03', $calendar->start);
+        self::assertSame([['date' => '2026-01-03', 'count' => 0]], $calendar->days);
+    }
+
     public function testUnsortedInputIsNormalizedByDateAcrossYearBoundary(): void
     {
         $calendar = ContributionCalendar::fromArray(

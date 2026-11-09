@@ -1,10 +1,20 @@
 export interface ContributionDay { date: string; count: number }
+export interface ConstellationSource {
+  provider: 'github';
+  login: string;
+  restrictedContributions: number;
+  ownAccount: boolean;
+  visibleTotals: { commits: number; issues: number; pullRequests: number; reviews: number; repositories: number };
+  repositoriesScanned: number;
+}
+
 export interface ConstellationData {
-  schemaVersion: 1;
-  mode: 'demo';
+  schemaVersion: 3;
+  mode: 'demo' | 'live';
+  generatedAt: string;
   profile: { username: string; name: string; role: string; stack: string };
   theme: { cyan: string; green: string };
-  period: { start: string; end: string };
+  period: { start: string; end: string; kind: 'all-time' | 'last-year'; granularity: 'month' | 'week' };
   days: ContributionDay[];
   metrics: {
     totalContributions: number;
@@ -13,8 +23,10 @@ export interface ConstellationData {
     pullRequests: number | null;
     codeReviews: number | null;
   };
-  languages: { name: string; repositories: number; color: string }[];
-  privateContributionsIncluded: boolean;
+  languages: { name: string; repositories: number | null; color: string }[];
+  languagesSource: 'ranking' | 'manual';
+  privateContributions: 'included' | 'excluded' | 'unknown';
+  source: ConstellationSource | null;
 }
 
 export interface WeeklyPoint {

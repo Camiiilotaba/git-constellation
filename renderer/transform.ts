@@ -3,23 +3,29 @@ import { DAY_MS, parseDate } from './validation.js';
 
 export const CHART: ChartGeometry = { left: 155, right: 1480, top: 310, bottom: 478 };
 
-/** Monday UTC buckets; truncated edge weeks retain their actual time midpoint. */
-export function weeklyPoints(days: ContributionDay[], geometry: ChartGeometry = CHART): WeeklyPoint[] {
-  if (days.length === 0) return [];
-  const groups: { start: number; end: number; count: number }[] = [];
-  let previousMonday: number | undefined;
+interface Bucket { start: number; end: number; count: number }
+
+/** Consecutive days that share a key form one bucket; the key is the bucket's first possible day. */
+function buckets(days: ContributionDay[], key: (timestamp: number) => number): Bucket[] {
+  const groups: Bucket[] = [];
+  let previousKey: number | undefined;
   for (const day of days) {
     const timestamp = parseDate(day.date);
-    const monday = timestamp - ((new Date(timestamp).getUTCDay() + 6) % 7) * DAY_MS;
+    const current = key(timestamp);
     const last = groups[groups.length - 1];
-    if (monday !== previousMonday || !last) {
+    if (current !== previousKey || !last) {
       groups.push({ start: timestamp, end: timestamp, count: day.count });
-      previousMonday = monday;
+      previousKey = current;
     } else { last.end = timestamp; last.count += day.count; }
   }
-  const start = parseDate(days[0]!.date);
+  return groups;
+}
+
+function place(groups: Bucket[], geometry: ChartGeometry): WeeklyPoint[] {
+  if (groups.length === 0) return [];
+  const start = groups[0]!.start;
   // Day intervals are [00:00, next 00:00), including the last day.
-  const duration = parseDate(days[days.length - 1]!.date) + DAY_MS - start;
+  const duration = groups[groups.length - 1]!.end + DAY_MS - start;
   const peak = Math.max(...groups.map(group => group.count));
   return groups.map(group => {
     const midpoint = (group.start + group.end + DAY_MS) / 2;
@@ -32,10 +38,33 @@ export function weeklyPoints(days: ContributionDay[], geometry: ChartGeometry = 
       intensity,
       x: geometry.left + ((midpoint - start) / duration) * (geometry.right - geometry.left),
       y: geometry.bottom - intensity * (geometry.bottom - geometry.top),
-      // Star sizes use the raw weekly ratio; coordinates never use decoration.
+      // Star sizes use the raw bucket ratio; coordinates never use decoration.
       radius: group.count === 0 ? 1.8 : 2.1 + 5.4 * (group.count / peak) ** 1.15,
     };
   });
+}
+
+/** Monday UTC buckets; truncated edge weeks retain their actual time midpoint. */
+export function weeklyPoints(days: ContributionDay[], geometry: ChartGeometry = CHART): WeeklyPoint[] {
+  return place(buckets(days, timestamp => timestamp - ((new Date(timestamp).getUTCDay() + 6) % 7) * DAY_MS), geometry);
+}
+
+/**
+ * UTC calendar-month buckets. The month that contains the last day is still in progress, so it is not
+ * drawn (its days still count in every total) unless fewer than two months would remain.
+ */
+export function monthlyPoints(days: ContributionDay[], geometry: ChartGeometry = CHART): WeeklyPoint[] {
+  const groups = buckets(days, timestamp => {
+    const date = new Date(timestamp);
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+  });
+  return place(groups.length > 2 ? groups.slice(0, -1) : groups, geometry);
+}
+
+/** A year label at each January; with no January in range, the first month carries its year. */
+export function yearTicks(points: Pick<WeeklyPoint, 'start' | 'x'>[]): { x: number; label: string }[] {
+  const januaries = points.filter(point => point.start.slice(5, 7) === '01');
+  return (januaries.length ? januaries : points.slice(0, 1)).map(point => ({ x: point.x, label: point.start.slice(0, 4) }));
 }
 
 const n = (value: number): string => value.toFixed(2);

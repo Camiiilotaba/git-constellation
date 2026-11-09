@@ -1,90 +1,67 @@
-# Continuidad — Git Constellation
+# Continuity — Git Constellation
 
-Última actualización: 2026-11-06
+Last updated: 2026-11-09 (Phase 2 closed)
 
-## Estado actual
+## Current state
 
-- Repositorio local: `/Users/eduardcherkashyn/develop/git-constellation`.
-- Fase 1 implementada y pulida; **no aprobada todavía por el usuario**.
-- No iniciar la Fase 2 ni conectar GitHub hasta que el usuario apruebe expresamente el resultado visual.
-- El usuario revisó el primer render, pidió pulirlo y aprobó la dirección general. La aprobación final de Fase 1 sigue pendiente tras el último pulido.
-- Instrucción explícita del usuario: delegar la implementación de código y documentación a agentes GPT Sol u otros modelos más básicos; el agente principal revisa el trabajo y su calidad. Si no hay agentes disponibles, explicar esa limitación al usuario antes de cambiar el método de trabajo; no asumir silenciosamente la implementación directa.
-- No hay cambios publicados ni release. Git está en `main`, sin commits y sin remoto configurado; el proyecto aparece sin seguimiento (`??`) en el último `git status` consultado.
+- Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
+- Branching model (owner, 2026-11-09): `main` holds released states only; `develop` is the integration branch; work happens on `feature/*` branches merged into `develop` with `--no-ff`; `develop` is merged into `main` with `--no-ff` when a phase is approved.
+- Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
+- Phase 3 (GitHub Actions Quick Start) is next, on `feature/phase-3-actions` from `develop`.
+- Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
+- Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
-## Producto y límites acordados
+## Product and agreed limits
 
-Git Constellation es una CLI open source independiente del repositorio especial `username/username` de GitHub. Genera una imagen panorámica de actividad GitHub para que el README del perfil pueda enlazar el PNG una vez publicado en una URL pública. No es SaaS y no requiere servidor permanente, VPS, Docker de producción, autenticación de usuarios ni base de datos. El PNG aún no está publicado.
+Git Constellation is an open-source CLI that renders a panoramic GitHub activity image (1920 × 840 PNG) for a profile README. No SaaS, no server, no database. Stack: PHP 8.3, Composer, Symfony HttpClient 7.4 and Dotenv 7.4, PHPUnit 12.5, TypeScript 5.9, Playwright 1.65, Vitest 4.1. No Laravel, React, Vue or Tailwind.
 
-Stack previsto: PHP 8.3+, Composer, Symfony HttpClient 7.4, GitHub GraphQL/REST en una fase futura, PHPUnit 12.5, TypeScript 5.9.3, HTML/CSS/SVG, Playwright 1.65 y Vitest 4.1.12. `@types/node` es 22.19.0. Node 24 recomendado; el paquete permite `^22.12.0 || >=24`. No usar Laravel, React, Vue ni Tailwind.
+The approved visual direction must not change. Phase 2 applied only the four adjustments the owner approved: no `ACTIVITY • CODE • CONTRIBUTIONS` line, no secondary captions under the metric cards, the DEMO badge only in demo mode, and a three-state privacy subtitle.
 
-La imagen debe conservar la identidad de la referencia proporcionada: composición panorámica, espacio oscuro, cyan/teal/verde, constelación luminosa central, perfil a la izquierda, lenguajes a la derecha, métricas secundarias abajo y horizonte con desarrollador. No rediseñar, añadir secciones, métricas o animaciones. No cambiar tarjetas ni ranking salvo para resolver legibilidad. La referencia completa nunca se usa como fondo.
+Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
 
-## Arquitectura ya implementada
+- Phase 3 decisions already taken by the owner (2026-11-09): scheduled workflow every 6 hours (configurable) plus a manual "Run workflow" button; the image is stored on a separate branch (e.g. `constellation`) whose single commit is replaced on each run, so `main` gets no bot commits; the profile README links the image from that branch; storing on `main` (one commit per change) may be offered as an option.
 
-PHP CLI carga configuración y fixture, valida datos y calcula métricas de demo; produce `build/data.json`. El exportador TypeScript valida y transforma ese contrato y Playwright genera PNG/HTML. Resumen de responsabilidades:
+## Phase 2 behaviour (implemented)
 
-- `src/Cli/`, `src/Config/`: CLI y configuración.
-- `src/Data/`: fixture, calendario y DTO de render.
-- `src/Statistics/`: métricas y ranking.
-- `src/Render/`: llamada segura al proceso Node.
-- `renderer/`: validación, transformaciones, adornos, plantilla y exportador.
-- `assets/constellation.css`, `assets/space.svg`, `assets/fonts/`: diseño, arte provisional y tipografía local Manrope con licencia OFL.
-- `fixtures/demo.json`, `config/demo.json`: datos y configuración ficticios.
-- `tests/php/`, `tests/ts/`, `tests/visual/`: pruebas PHP, Vitest y Playwright.
-- `dist/constellation.png`: artefacto PNG final de demo (1920 × 840); también se genera `dist/constellation.html`.
+- `--demo` unchanged (fixture, no network). `--live` queries GitHub GraphQL for the login in the config (`config/local.json` by default; template `config/live.example.json`).
+- Token: `GITHUB_TOKEN` from the process environment, else `<root>/.env` (parsed, never exported). Classic token with only `read:user`. A token with the `repo` scope is rejected. Fine-grained tokens work but give public-only PR/review counts; classic `read:user` is recommended.
+- Period (config `period`): `all-time` by default — one `contributionYears` query plus one query per calendar year since the first contribution; subtitle `Since <Mon YYYY>`; monthly constellation up to the last complete month (the month in progress counts in totals, is not drawn); year labels at each January, none for a partial first year. `last-year` keeps the rolling 365/366-day weekly view.
+- Metrics: daily calendar, total, active days and longest streak include anonymized private counts when the profile owner shares them; Pull Requests and Code Reviews count only token-visible activity; languages from public, non-fork, non-archived repositories the user owns, collaborates on or reaches through an organization, non-programming languages excluded (`excludeLanguages`), ranked by repository count then code size, top 5, no percentages; or a manual `languages` list in the config (the owner uses PHP, TypeScript, JavaScript, Dart, SQL), shown without footnote. For the token owner's own account, totals, PRs and reviews include private activity as counts (spike verified).
+- Private-contributions state: `included` on explicit signals only (restricted count > 0, `hasAnyRestrictedContributions`, or the token belongs to the queried account); `excluded` only with no signal and exact arithmetic; otherwise `unknown`. The image subtitle shows only the period; the state lives in `data.json`, the CLI summary and the screen-reader text.
+- Failures (auth, rate limit, network, GraphQL errors, malformed data, unknown user, > 2000 repos) exit 1, print `Error:` to STDERR, write nothing, never fall back to demo. The token never appears in output, files, exceptions or the Node child process (environment filtered by name and by value).
+- Live output defaults to `dist/live.png` (gitignored); live mode refuses to write `dist/constellation.png`, the committed demo image.
+- `build/data.json` is schema v3, shared by demo and live (`mode`, `generatedAt`, `period.kind`/`granularity`, `privateContributions`, `languagesSource`, `source`).
+- Background figure redrawn 2026-11-09 (owner chose variant C3: leaning forward, readable laptop).
 
-## Datos demo y visualización
-
-El fixture cubre cada día desde 2025-11-01 hasta 2026-10-31. Muestra el perfil ficticio Alex Morgan, Backend Developer, con stack PHP / TypeScript. Valores simulados: 1.351 contribuciones, 136 PR, 84 reviews, 327 días activos y racha de 20 días. El ranking cuenta presencia de lenguajes en repositorios del fixture, incluidos lenguajes secundarios; excluye forks y repositorios archivados. Son datos ilustrativos, no estadísticas de una persona real. La demo mantiene un período fijo y reproducible; el modo live futuro deberá calcular dinámicamente los últimos 12 meses y documentar el período consultado.
-
-La constelación agrupa días en semanas UTC de lunes, conserva semanas parciales y ubica cada estrella en el punto medio temporal de los días incluidos. La altura usa `sqrt(total semanal / máximo semanal)` (dominio dinámico del período). Tamaño y brillo dependen de actividad. Hasta cinco máximos locales pueden tener destellos; las conexiones secundarias discontinuas son ornamentales y no codifican datos. No hay aleatoriedad en las posiciones medidas.
-
-El último pulido trabajó el espacio vertical, las estrellas y destellos, las conexiones discontinuas, la superficie/atmósfera del planeta, la silueta del personaje y la legibilidad a anchuras de README de 830 y 960 px. No cambió paleta, tarjetas, ranking ni fixtures. Se impone al menos 6 px entre recuadros de destello y el texto superior.
-
-## Privacidad para las fases futuras
-
-La Fase 1 funciona sin token ni red. Para el futuro modo live, consultar inicialmente solo estadísticas agregadas de contribuciones privadas anonimizadas que GitHub permita. No pedir permisos privados innecesarios, no leer código privado ni publicar nombres de repositorios privados, ramas, mensajes, títulos de PR u otros metadatos internos. No asumir que conteos de PR/reviews incluyen actividad privada; si una cifra no está disponible con permisos autorizados, ocultarla o marcarla indisponible. Lenguajes se calculan con repositorios públicos no archivados ni forks contando repositorios donde aparece cada lenguaje; esto mide presencia, no dominio, y puede no representar tamaño/uso real del lenguaje.
-
-## Comandos
-
-Instalación limpia y demo:
+## Commands
 
 ```sh
-composer install
-npm ci
-npx playwright install chromium
-npm run build
-php bin/constellation --demo
-open dist/constellation.png
+composer install && npm ci && npx playwright install chromium && npm run build
+composer run demo                              # demo image → dist/constellation.png
+cp config/live.example.json config/local.json  # edit username/name/role/stack
+cp .env.example .env                           # set GITHUB_TOKEN
+php bin/constellation --live                   # live image → dist/live.png + verification summary
+composer test                                  # PHPUnit (integration test skipped without env)
+npm test                                       # build + Vitest
+npm run test:visual                            # Playwright (snapshots are macOS-only)
+node build/renderer/review.js                  # comparison gallery in build/review/
 ```
 
-Atajo disponible: `composer run demo`. Configuración en `config/demo.json`; puede cambiarse con opciones CLI documentadas en README. Pruebas PHP: `composer test`. `npm test` ejecuta `pretest` (compilación) y Vitest. Pruebas visuales: `npm run test:visual`.
+Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN=<login> ./vendor/bin/phpunit --group integration`.
 
-La galería de comparación se regenera, tras producir la demo, con `node build/renderer/review.js` y se abre con `open build/review/comparison.html`. Requiere la imagen de referencia en `build/review/reference.png`; el script genera `new.png`, las reducciones y la galería. El directorio `build/` está ignorado y es efímero: preserva la referencia antes de limpiar una copia de trabajo o cambiar de máquina. La imagen de referencia del usuario puede no estar disponible en una sesión nueva.
+## Verification (2026-11-09)
 
-## Verificación ya comunicada
+- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
-- Backend: `composer validate --strict` y 74 pruebas PHPUnit (145 aserciones) pasaron.
-- Renderer: 50 pruebas Vitest y 6 pruebas Playwright pasaron.
-- Tras el pulido se actualizaron intencionalmente siete snapshots de macOS; una ejecución posterior de `npm run test:visual` sin actualización pasó las seis pruebas.
-- Se inspeccionaron el render final y las vistas 830/960 px. No hace falta repetir todas las pruebas por esta nota de continuidad; ejecutar las pertinentes si el estado de archivos ha cambiado.
+## Review artifacts
 
-## Artefactos de revisión
+- Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored, not generated yet).
+- Visual baselines: `tests/visual/constellation.spec.ts-snapshots/`.
+- Comparison gallery and reference: `build/review/` (ignored; keep `build/review/reference.png` safe, it is the owner's reference and `build/` is ephemeral).
+- Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`.
 
-- Imagen final: `dist/constellation.png`.
-- HTML autónomo: `dist/constellation.html`.
-- Comparativa: `build/review/comparison.html`.
-- Capturas: `build/review/reference.png`, `before.png`, `new.png`, `readme-830.png`, `readme-960.png`.
-- Copias reducidas alternativas: `build/visual-preview/readme-830.png` y `readme-960.png`.
+## How to resume in a new session
 
-Los resultados de `build/` no están versionados. `dist/constellation.png` es el artefacto preservado por `.gitignore`; el HTML generado queda ignorado. No se ha creado workflow de GitHub Actions ni integración API. `.env.example` existe, pero la demo no carga secretos.
-
-## Cómo retomar en una sesión nueva
-
-1. Leer este archivo, `README.md` y `renderer/README.md`; luego comprobar `git status --short --branch` y los artefactos existentes.
-2. Mostrar/revisar `dist/constellation.png` y, si persiste, abrir `build/review/comparison.html` y las capturas 830/960 px. No reconstruir los snapshots si no hay un cambio visual deliberado.
-3. Mantener la Fase 1 pendiente hasta que el usuario apruebe explícitamente la imagen. Si solicita más pulido, delegar el cambio a agentes/modelos subordinados cuando estén disponibles y revisar personalmente el resultado, sin ampliar el alcance.
-4. Solo tras aprobación explícita, comenzar Fase 2: cliente oficial GitHub GraphQL/REST, manejo de errores/límites/autenticación, datos reales y pruebas, respetando estrictamente la política de privacidad anterior.
-5. Fases posteriores: automatización diaria/manual de GitHub Actions que publique solo `dist/constellation.png`, documentación final, revisión de seguridad y preparación de release. No afirmar publicación hasta que ocurra.
-
-Prompt breve para iniciar otra sesión: «Lee `CONTINUITY.md` en la raíz y continúa Git Constellation desde ese estado. La Fase 1 sigue pendiente de mi aprobación visual. Respeta mis límites: delega la implementación a agentes GPT Sol/modelos más básicos y revisa tú el resultado. Si no hay agentes disponibles, explícame la limitación antes de cambiar el método. No avances a Fase 2 sin mi aprobación explícita».
+1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline --graph -15`.
+2. Continue Phase 3 on `feature/phase-3-actions` (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.

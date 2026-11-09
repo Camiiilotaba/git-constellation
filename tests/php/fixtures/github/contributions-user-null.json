@@ -1,0 +1,17 @@
+{
+    "errors": [
+        {
+            "type": "NOT_FOUND",
+            "path": ["user"],
+            "locations": [{"line": 4, "column": 3}],
+            "message": "Could not resolve to a User with the login of 'ghost'."
+        }
+    ],
+    "data": {
+        "rateLimit": {
+            "remaining": 4990,
+            "resetAt": "2026-11-06T13:00:00Z"
+        },
+        "user": null
+    }
+}

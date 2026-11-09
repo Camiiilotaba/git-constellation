@@ -24,6 +24,37 @@ final class ConfigurationTest extends TestCase
         self::assertSame('dist/new image.png', $custom->output);
     }
 
+    public function testLanguageOptionsAreNormalized(): void
+    {
+        $defaults = Configuration::fromArray(self::BASE);
+        self::assertNull($defaults->excludeLanguages);
+        self::assertNull($defaults->languages);
+        $config = Configuration::fromArray(self::BASE + [
+            'excludeLanguages' => [],
+            'languages' => ['PHP', ['name' => ' TypeScript ', 'color' => '#ABCDEF'], ['name' => 'Go']],
+        ]);
+        self::assertSame([], $config->excludeLanguages);
+        self::assertSame([
+            ['name' => 'PHP', 'color' => null],
+            ['name' => 'TypeScript', 'color' => '#abcdef'],
+            ['name' => 'Go', 'color' => null],
+        ], $config->languages);
+    }
+
+    public function testPeriodDefaultsToAllTimeAndAcceptsLastYear(): void
+    {
+        self::assertSame('all-time', Configuration::fromArray(self::BASE)->period);
+        self::assertSame('last-year', Configuration::fromArray(self::BASE + ['period' => 'last-year'])->period);
+        self::assertSame('all-time', Configuration::fromArray(self::BASE + ['period' => 'all-time'])->period);
+    }
+
+    public function testDefaultOutputFollowsTheModeDefault(): void
+    {
+        self::assertSame('dist/live.png', Configuration::fromArray(self::BASE, null, 'dist/live.png')->output);
+        self::assertSame('dist/own.png', Configuration::fromArray(self::BASE + ['output' => 'dist/own.png'], null, 'dist/live.png')->output);
+        self::assertSame('dist/cli.png', Configuration::fromArray(self::BASE, 'dist/cli.png', 'dist/live.png')->output);
+    }
+
     #[DataProvider('invalidFields')]
     public function testInvalidConfigurationFailsWithActionableField(array $patch, string $field): void
     {
@@ -50,6 +81,23 @@ final class ConfigurationTest extends TestCase
         yield 'null output' => [['output' => null], 'output'];
         yield 'non PNG output' => [['output' => 'dist/output.html'], 'output'];
         yield 'path with NUL' => [['output' => "dist/hi\0.png"], 'output'];
+        yield 'excludeLanguages not a list' => [['excludeLanguages' => 'CSS'], 'excludeLanguages'];
+        yield 'excludeLanguages empty name' => [['excludeLanguages' => ['CSS', ' ']], 'excludeLanguages'];
+        yield 'excludeLanguages non-string' => [['excludeLanguages' => [1]], 'excludeLanguages'];
+        yield 'excludeLanguages too long' => [['excludeLanguages' => [str_repeat('a', 81)]], 'excludeLanguages'];
+        yield 'excludeLanguages control char' => [['excludeLanguages' => ["C\nSS"]], 'excludeLanguages'];
+        yield 'languages empty' => [['languages' => []], 'languages'];
+        yield 'languages not a list' => [['languages' => ['name' => 'PHP']], 'languages'];
+        yield 'languages too many' => [['languages' => ['A', 'B', 'C', 'D', 'E', 'F']], 'languages'];
+        yield 'languages duplicate' => [['languages' => ['PHP', 'php']], 'duplicate'];
+        yield 'languages bad entry type' => [['languages' => [3]], 'languages'];
+        yield 'languages missing name' => [['languages' => [['color' => '#ffffff']]], 'languages'];
+        yield 'languages bad color' => [['languages' => [['name' => 'PHP', 'color' => 'red']]], 'color'];
+        yield 'languages unknown key' => [['languages' => [['name' => 'PHP', 'size' => 1]]], 'languages'];
+        yield 'languages long name' => [['languages' => [str_repeat('a', 81)]], 'languages'];
+        yield 'period calendar year' => [['period' => 'calendar-year'], 'period'];
+        yield 'period wrong type' => [['period' => 365], 'period'];
+        yield 'period null' => [['period' => null], 'period'];
         yield 'unknown config field' => [['githubToken' => 'example-not-a-real-token'], 'Unknown configuration field'];
     }
 }

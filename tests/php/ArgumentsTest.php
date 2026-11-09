@@ -28,6 +28,38 @@ final class ArgumentsTest extends TestCase
         self::assertSame('dist/a;$name.png', $arguments->output);
     }
 
+    public function testLiveFlagParses(): void
+    {
+        $arguments = Arguments::parse(['--live']);
+        self::assertTrue($arguments->live);
+        self::assertSame('config/local.json', $arguments->config);
+        self::assertFalse(Arguments::parse(['--demo'])->live);
+    }
+
+    public function testDemoAndLiveAreExclusive(): void
+    {
+        $this->expectExceptionObject(new InvalidArgumentException('Choose either --demo or --live, not both.'));
+        Arguments::parse(['--demo', '--live']);
+    }
+
+    public function testNeitherModeFails(): void
+    {
+        $this->expectExceptionObject(new InvalidArgumentException('Pass --demo (simulated data) or --live (GitHub data). Use --help for usage.'));
+        Arguments::parse([]);
+    }
+
+    public function testFixtureRejectedInLiveMode(): void
+    {
+        $this->expectExceptionObject(new InvalidArgumentException('--fixture only applies to --demo.'));
+        Arguments::parse(['--live', '--fixture=x.json']);
+    }
+
+    public function testLiveDoesNotTakeValue(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        Arguments::parse(['--live=true']);
+    }
+
     public function testHelpDoesNotNeedDemoFlag(): void
     {
         self::assertTrue(Arguments::parse(['--help'])->help);
@@ -44,12 +76,15 @@ final class ArgumentsTest extends TestCase
     public static function invalidArguments(): iterable
     {
         yield 'missing demo' => [[]];
-        yield 'unsupported live' => [['--live']];
         yield 'demo with value' => [['--demo=true']];
         yield 'missing output' => [['--demo', '--output']];
         yield 'empty path' => [['--demo', '--config=']];
         yield 'option used as path' => [['--demo', '--fixture', '--config=x']];
         yield 'duplicate option' => [['--demo', '--demo']];
+        yield 'both modes' => [['--demo', '--live']];
+        yield 'neither mode' => [[]];
+        yield 'fixture with live' => [['--live', '--fixture=x.json']];
+        yield 'live with value' => [['--live=true']];
         yield 'unknown argument' => [['--demo', '--username=x']];
     }
 }

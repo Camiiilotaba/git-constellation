@@ -1,21 +1,23 @@
-# Fase 1: estructura y primera versión visual
+# Phase 1: structure and first visual version
 
-## Objetivo
+> Phase 2 changed the data contract to `schemaVersion` 2 (live mode, `privateContributions`, `source`). This document describes the Phase 1 contract; see [phase-2.md](phase-2.md) for the current v2 contract.
 
-Crear una primera versión ejecutable que genere, con datos ficticios fijos, un PNG panorámico inspirado en la referencia visual. Esta fase sirve para revisar composición, proporciones, jerarquía y legibilidad antes de empezar la integración con GitHub.
+## Goal
 
-El resultado demo debe identificarse claramente como ejemplo. No debe sugerir que sus estadísticas pertenecen a un usuario real.
+Create a first runnable version that generates, from fixed fictional data, a panoramic PNG inspired by the visual reference. This phase exists to review composition, proportions, hierarchy and legibility before starting the GitHub integration.
 
-## Arquitectura
+The demo output must be clearly identified as an example. It must not suggest that its statistics belong to a real user.
 
-- PHP CLI carga configuración y fixture, valida y normaliza los datos y escribe `build/data.json`.
-- El comando PHP inicia el exportador Node con argumentos separados, solicita el PNG de salida y comprueba los errores del proceso.
-- TypeScript transforma los datos normalizados en elementos SVG/HTML y Playwright renderiza el resultado a PNG. `npm run build` compila `renderer/*.ts` a `build/renderer/*.js` como módulos ESM.
-- Los fixtures, los datos de render y el diseño visual permanecen separados para que sea posible revisar la visualización sin llamadas a servicios externos.
+## Architecture
 
-## Contrato de datos entre PHP y el renderer
+- The PHP CLI loads the configuration and fixture, validates and normalizes the data, and writes `build/data.json`.
+- The PHP command starts the Node exporter with separate arguments, requests the output PNG and checks the process for errors.
+- TypeScript transforms the normalized data into SVG/HTML elements and Playwright renders the result to PNG. `npm run build` compiles `renderer/*.ts` to `build/renderer/*.js` as ESM modules.
+- Fixtures, render data and visual design stay separate so the visualization can be reviewed without calls to external services.
 
-El JSON preparado por PHP tiene esta forma:
+## Data contract between PHP and the renderer
+
+The JSON prepared by PHP has this shape:
 
 ```json
 {
@@ -52,11 +54,11 @@ El JSON preparado por PHP tiene esta forma:
 }
 ```
 
-El fixture debe incluir todos los días del período, de forma inclusiva, con fechas únicas; el backend ordena la entrada y rechaza huecos y duplicados. Los conteos diarios son enteros no negativos. Las métricas de PR y revisiones admiten `null` cuando no están disponibles. Los colores de tema son valores hexadecimales. Los valores de este ejemplo son ilustrativos.
+The fixture must include every day of the period, inclusively, with unique dates; the backend sorts the input and rejects gaps and duplicates. Daily counts are non-negative integers. The pull request and review metrics accept `null` when unavailable. Theme colors are hexadecimal values. The values in this example are illustrative.
 
-## CLI acordado
+## Agreed CLI
 
-La interfaz de CLI acordada para generar la demo es:
+The agreed CLI interface for generating the demo is:
 
 ```sh
 php bin/constellation --demo \
@@ -65,60 +67,62 @@ php bin/constellation --demo \
   [--output=dist/constellation.png]
 ```
 
-El proceso genera primero `build/data.json` y luego invoca:
+The process first generates `build/data.json` and then invokes:
 
 ```sh
 node build/renderer/export.js --input build/data.json --output <png>
 ```
 
-El exportador guarda también un HTML hermano del PNG por defecto. La opción `--no-html` se admite al invocar directamente Node; el CLI PHP no expone esa opción.
+By default the exporter also saves an HTML file next to the PNG. The `--no-html` option is accepted when invoking Node directly; the PHP CLI does not expose it.
 
-El comando acepta opciones en formato `--opción=valor` o `--opción valor`, resuelve rutas relativas desde la raíz del proyecto y muestra ayuda con `--help`. El proceso valida errores y reporta fallos de Node y Playwright.
+The command accepts options as `--option=value` or `--option value`, resolves relative paths from the project root and prints help with `--help`. It validates errors and reports Node and Playwright failures.
 
-## Transformación de la constelación
+## Constellation transform
 
-El gráfico se calcula desde los días reales del fixture, sin aleatoriedad en las posiciones de los puntos. Se agrupan por semanas UTC que comienzan el lunes; también se incluyen el primer y último grupo parcial. La coordenada horizontal usa el punto medio temporal del grupo. La altura y la intensidad representan su total semanal; las conexiones siguen una curva suave. Los adornos de fondo pueden ser decorativos, pero no alteran los datos.
+The chart is computed from the real days of the fixture, with no randomness in point positions. Days are grouped into UTC weeks starting on Monday; the first and last partial groups are included. The horizontal coordinate uses the temporal midpoint of the group. Height and intensity represent the weekly total; the connections follow a smooth curve. Background ornaments may be decorative but do not alter the data.
 
-La implementación actual usa `sqrt(total semanal / máximo semanal del período)`, con intensidad cero cuando no hay actividad en todo el período. Así, el máximo queda normalizado a uno y la raíz cuadrada distribuye la actividad por el espacio vertical disponible. La escala es relativa al período y no permite comparar conteos absolutos entre imágenes.
+The current implementation uses `sqrt(weekly total / maximum weekly total of the period)`, with zero intensity when there is no activity in the whole period. The maximum is thus normalized to one and the square root spreads activity across the available vertical space. The scale is relative to the period and does not allow comparing absolute counts between images.
 
-El brillo y tamaño varían según el total semanal relativo. Hasta cinco máximos locales separados reciben destellos; una meseta uniforme se trata como un único máximo. Las ramas discontinuas tenues son decoración explícita, sin conteos ni fechas, y nunca alteran los puntos medidos ni su curva continua. Se conservan los valores originales de los fixtures.
+Brightness and size vary with the relative weekly total. Up to five separated local maxima receive flares; a uniform plateau counts as a single maximum. The faint dashed branches are explicit decoration, without counts or dates, and never alter the measured points or their continuous curve. The original fixture values are preserved.
 
-El período de demo es fijo para que el mismo fixture produzca la misma forma temporal. El modo live y cualquier período móvil quedan fuera de esta fase.
+The demo period is fixed so that the same fixture produces the same temporal shape. Live mode and any rolling period are outside this phase.
 
-## Dirección visual
+## Visual direction
 
-La composición conserva la identidad de la referencia: perfil y total en la zona izquierda, constelación y meses en el centro, lenguajes a la derecha y métricas secundarias en la parte inferior. El período va junto al total de contribuciones y no hay footer. Se mantienen el fondo oscuro, los tonos cyan/teal/verde, el horizonte planetario, una silueta discreta y paneles translúcidos con bordes finos.
+The composition keeps the identity of the reference: profile and total on the left, constellation and months in the center, languages on the right and secondary metrics at the bottom. The period sits next to the contribution total and there is no footer. The dark background, the cyan/teal/green tones, the planetary horizon, a discreet silhouette and translucent panels with thin borders are kept.
 
-La captura de referencia no se usa como fondo. El fondo inicial puede ser una ilustración provisional hecha con SVG/CSS y debe conservar la dirección artística; no se presenta como arte final ni como réplica exacta. Si la composición panorámica reduce demasiado el tamaño del texto, se debe probar una variante con hero y estadísticas secundarias separados, manteniendo la misma identidad.
+The reference screenshot is not used as a background. The initial background can be a provisional SVG/CSS illustration and must keep the artistic direction; it is not presented as final art or an exact replica. If the panoramic composition makes the text too small, a variant with the hero and the secondary statistics separated should be tried, keeping the same identity.
 
-## Criterios de aceptación
+## Acceptance criteria
 
-- La instalación documentada coincide con los requisitos reales de PHP, Composer, Node, npm y Playwright.
-- El modo demo funciona sin token, llamadas de red ni credenciales.
-- El fixture cubre un período fijo y cada fecha aparece una sola vez, sin huecos; PHP ordena las fechas antes de normalizarlas.
-- El CLI prepara el JSON acordado y llama al exportador con argumentos seguros y errores comprobables.
-- Playwright produce `dist/constellation.png` y, por defecto, `dist/constellation.html`. El PNG generado mide 1920 × 840 píxeles.
-- Los datos demo están identificados en la imagen como una muestra.
-- La curva central refleja las agregaciones semanales del fixture, incluidos los grupos parciales de los extremos, y no usa datos aleatorios para ubicarla.
-- La composición se inspecciona frente a la referencia en tamaño panorámico y se corrigen los problemas importantes de legibilidad y jerarquía.
-- La documentación describe únicamente lo que existe y diferencia claramente lo implementado de lo pendiente.
+- The documented installation matches the real requirements of PHP, Composer, Node, npm and Playwright.
+- Demo mode works without a token, network calls or credentials.
+- The fixture covers a fixed period and each date appears exactly once, without gaps; PHP sorts the dates before normalizing them.
+- The CLI prepares the agreed JSON and calls the exporter with safe arguments and checkable errors.
+- Playwright produces `dist/constellation.png` and, by default, `dist/constellation.html`. The generated PNG is 1920 × 840 pixels.
+- Demo data is identified in the image as a sample.
+- The central curve reflects the fixture's weekly aggregations, including the partial groups at both ends, and uses no random data to place it.
+- The composition is inspected against the reference at panoramic size and the important legibility and hierarchy problems are fixed.
+- The documentation describes only what exists and clearly distinguishes what is implemented from what is pending.
 
-## Fuera de alcance
+## Out of scope
 
-Esta fase no implementa cliente GraphQL/REST, acceso a estadísticas live, ranking calculado desde repositorios reales, workflows, publicación automática, servidor, base de datos ni credenciales. La política futura exige limitar la actividad privada a totales anonimizados autorizados, no leer código privado y no divulgar metadatos privados. Los desgloses de PR y revisiones no se asumirán completos si la API o los permisos no los proporcionan.
+This phase does not implement a GraphQL/REST client, access to live statistics, a language ranking computed from real repositories, workflows, automated publishing, a server, a database or credentials. The future policy requires limiting private activity to authorized anonymized totals, not reading private code and not disclosing private metadata. Pull request and review breakdowns will not be assumed complete if the API or the permissions do not provide them.
 
-La revisión y aprobación visual de esta fase preceden al inicio de las fases posteriores.
+Visual review and approval of this phase precede the start of later phases.
 
-## Comandos y resultados de verificación
+## Verification commands and results
 
-- `composer validate --strict`: correcto.
-- `composer test`: correcto, 74 tests y 145 assertions. PHPUnit guarda su caché en `build/phpunit-cache`.
-- `npm test`: el hook `pretest` ejecuta `npm run build` antes de Vitest. Resultado: 50 tests pasaron.
-- `npm run test:visual`: seis pruebas; siete capturas con los casos especiales y los anchos de README de 830 y 960 píxeles.
-- `npm run test:visual:update`: actualizar capturas de referencia de forma explícita.
+These are the Phase 1 results; later phases have added tests.
 
-Las siete capturas de referencia incluidas en `tests/visual/constellation.spec.ts-snapshots/` corresponden a macOS y Chromium. Incluyen el PNG a los anchos de README de 830 y 960 píxeles y el calendario sin actividad. Las versiones reducidas requieren revisión humana de legibilidad; las pruebas automáticas verifican límites y cambios visuales. En otro sistema operativo, genera referencias específicas con `npm run test:visual:update` y revísalas expresamente. Las pruebas visuales normales comparan las referencias existentes y no deben regenerarlas.
+- `composer validate --strict`: passed.
+- `composer test`: passed, 74 tests and 145 assertions. PHPUnit keeps its cache in `build/phpunit-cache`.
+- `npm test`: the `pretest` hook runs `npm run build` before Vitest. Result: 50 tests passed.
+- `npm run test:visual`: six tests; seven screenshots with the special cases and the README widths of 830 and 960 pixels.
+- `npm run test:visual:update`: explicitly updates the reference screenshots.
 
-La galería local `build/review/comparison.html` muestra la referencia original, el render anterior cuando existe, el nuevo PNG y las vistas de README. Se genera mediante `node build/renderer/review.js` después de la demo; necesita la referencia en `build/review/reference.png`. Las imágenes originales se muestran al mismo ancho conservando su proporción y no se utilizan como fondo de ejecución.
+The seven reference screenshots in `tests/visual/constellation.spec.ts-snapshots/` correspond to macOS and Chromium. They include the PNG at README widths of 830 and 960 pixels and the calendar without activity. The reduced versions need human review of legibility; the automated tests check bounds and visual changes. On another operating system, generate specific references with `npm run test:visual:update` and review them explicitly. The normal visual tests compare against the existing references and must not regenerate them.
 
-El PNG generado está en `dist/constellation.png` y mide 1920 × 840 píxeles. La Fase 1 queda lista para revisión visual; aún no está aprobada para comenzar las fases posteriores.
+The local gallery `build/review/comparison.html` shows the original reference, the previous render when it exists, the new PNG and the README views. It is generated with `node build/renderer/review.js` after the demo and needs the reference at `build/review/reference.png`. The original images are shown at the same width preserving their aspect ratio and are not used as a runtime background.
+
+The generated PNG is at `dist/constellation.png` and is 1920 × 840 pixels. Phase 1 is ready for visual review; it is not yet approved to start later phases.

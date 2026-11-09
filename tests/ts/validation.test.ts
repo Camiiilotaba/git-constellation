@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDate, validateData } from '../../renderer/validation.js';
-import { demoData, shortData } from './fixtures.js';
+import { allTimeData, demoData, liveData, manualLanguages, shortData } from './fixtures.js';
 
 describe('offline data boundary', () => {
   it('accepts a complete fixture and nullable unavailable metrics', () => {
@@ -39,7 +39,7 @@ describe('offline data boundary', () => {
 
   it('accepts an inclusive leap-year calendar of 366 days', () => {
     const data = demoData();
-    data.period = { start: '2024-01-01', end: '2024-12-31' };
+    data.period = { start: '2024-01-01', end: '2024-12-31', kind: 'last-year', granularity: 'week' };
     data.days = Array.from({ length: 366 }, (_, i) => ({ date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), count: 0 }));
     Object.assign(data.metrics, { totalContributions: 0, activeDays: 0, longestStreak: 0 });
     expect(validateData(data).days).toHaveLength(366);
@@ -64,11 +64,78 @@ describe('offline data boundary', () => {
     expect(() => validateData(data)).toThrow(/at least one/);
   });
 
-  it('rejects unsupported modes and private claims in demonstration data', () => {
-    expect(() => validateData({ ...shortData(), mode: 'live' })).toThrow(/demo/);
-    expect(() => validateData({ ...shortData(), privateContributionsIncluded: true })).toThrow(/must not claim private/);
-    expect(() => validateData({ ...shortData(), schemaVersion: 2 })).toThrow(/schemaVersion/);
+  it('accepts a manual language list and rejects invalid source or repository values', () => {
+    const data = shortData();
+    data.languagesSource = 'manual';
+    data.languages = manualLanguages();
+    expect(() => validateData(data)).not.toThrow();
+    data.languages[0]!.repositories = 3;
+    expect(() => validateData(data)).toThrow(/null/);
+    data.languages = manualLanguages();
+    data.languages = [...data.languages, ...data.languages.map(l => ({ ...l, name: `${l.name}2` }))];
+    expect(() => validateData(data)).toThrow(/at most five/);
+    data.languages = [];
+    expect(() => validateData(data)).toThrow(/1 to 5/);
+    const ranking = shortData();
+    ranking.languages[0]!.repositories = null;
+    expect(() => validateData(ranking)).toThrow(/nonnegative/);
+    expect(() => validateData({ ...shortData(), languagesSource: 'other' })).toThrow(/languagesSource/);
+    const missing: Record<string, unknown> = { ...shortData() };
+    delete missing.languagesSource;
+    expect(() => validateData(missing)).toThrow(/languagesSource/);
   });
+
+  it('accepts schema v3 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });
+  it('rejects schemaVersion 1', () => { expect(() => validateData({ ...demoData(), schemaVersion: 1 })).toThrow(/schemaVersion/); });
+  it('rejects schemaVersion 2', () => { expect(() => validateData({ ...demoData(), schemaVersion: 2 })).toThrow(/schemaVersion/); });
+
+  it('accepts an all-time monthly period longer than 366 days', () => {
+    expect(validateData(allTimeData()).days).toHaveLength(1114);
+  });
+
+  it('keeps the 366-day limit for weekly periods only', () => {
+    const data = allTimeData();
+    data.period.kind = 'last-year';
+    data.period.granularity = 'week';
+    expect(() => validateData(data)).toThrow(/366/);
+  });
+
+  it('rejects an unknown period kind or granularity', () => {
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, kind: 'calendar-year' as never } })).toThrow(/period.kind/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, granularity: 'day' as never } })).toThrow(/period.granularity/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, kind: 'all-time' } })).toThrow(/must match/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, granularity: 'month' } })).toThrow(/must match/);
+    const { kind: _kind, ...withoutKind } = demoData().period;
+    expect(() => validateData({ ...demoData(), period: withoutKind as never })).toThrow(/period.kind/);
+  });
+  it('requires a boolean source.ownAccount in live mode', () => {
+    const source = liveData().source!;
+    expect(() => validateData(liveData({ source: { ...source, ownAccount: 'yes' as unknown as boolean } }))).toThrow(/source.ownAccount/);
+  });
+
+  it('accepts live data with each privateContributions state', () => {
+    for (const state of ['included', 'excluded', 'unknown'] as const) {
+      expect(() => validateData(liveData({ privateContributions: state }))).not.toThrow();
+    }
+  });
+  it('rejects included/unknown in demo mode', () => {
+    expect(() => validateData({ ...demoData(), privateContributions: 'included' })).toThrow(/demo/i);
+    expect(() => validateData({ ...demoData(), privateContributions: 'unknown' })).toThrow(/demo/i);
+  });
+  it('requires source in live mode and null source in demo mode', () => {
+    expect(() => validateData(liveData({ source: null }))).toThrow(/source/);
+    expect(() => validateData({ ...demoData(), source: liveData().source })).toThrow(/source/);
+  });
+  it('rejects a malformed live source', () => {
+    const source = { ...liveData().source!, provider: 'gitlab' };
+    expect(() => validateData(liveData({ source: source as never }))).toThrow(/source.provider/);
+    expect(() => validateData(liveData({ source: { ...liveData().source!, login: 'x'.repeat(40) } }))).toThrow(/source.login/);
+    expect(() => validateData(liveData({ source: { ...liveData().source!, repositoriesScanned: -1 } }))).toThrow(/repositoriesScanned/);
+  });
+  it('validates generatedAt as ISO 8601 UTC', () => {
+    expect(() => validateData({ ...demoData(), generatedAt: '2026-11-06 12:00' })).toThrow(/generatedAt/);
+  });
+  it('rejects an unknown mode', () => { expect(() => validateData({ ...demoData(), mode: 'test' })).toThrow(/mode/); });
 
   it('reports incomplete fields without echoing data', () => {
     const data: Record<string, unknown> = { ...shortData(), profile: { name: 'SENSITIVE_SENTINEL' } };

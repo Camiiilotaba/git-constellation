@@ -135,22 +135,9 @@ main:after {
   background:#5ea0ad;
 }
 
-.brand .tagline {
-  font-size:14px;
-  letter-spacing:5px;
-  color:#b5c6d0;
-  margin-top:12px;
-}
-
-.brand .tagline b {
-  color:var(--green);
-  margin:0 12px;
-  font-size:16px;
-}
-
 .demo {
   display:inline-block;
-  margin-top:17px;
+  margin-top:51px;
   padding:5px 13px;
   border:1px solid #2c636b;
   border-radius:20px;
@@ -269,6 +256,8 @@ main:after {
   top:186px;
   width:320px;
   min-height:324px;
+  display:flex;
+  flex-direction:column;
   padding:22px 23px 18px;
   border:1px solid #439aa3;
   border-radius:20px;
@@ -302,6 +291,13 @@ main:after {
   margin:0;
   display:grid;
   gap:7px;
+}
+
+/* Without the footnote (manual mode) the list centers in the space below the heading. */
+.languages ol:last-child {
+  flex:1;
+  align-content:center;
+  padding-top:0;
 }
 
 .languages li {
