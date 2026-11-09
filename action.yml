@@ -52,7 +52,13 @@ runs:
     - name: Check runtimes
       id: runtimes
       shell: bash
+      env:
+        GC_STATS_TOKEN: ${{ inputs.token }}
       run: |
+        if [[ -z $GC_STATS_TOKEN ]]; then
+          echo "::error::The token input is empty. If it references a secret such as CONSTELLATION_TOKEN, create that repository secret or remove the token line."
+          exit 1
+        fi
         if ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
           echo "::error::Git Constellation needs PHP 8.3 or later on the runner. Use runs-on: ubuntu-24.04."
           exit 1
@@ -116,4 +122,5 @@ runs:
         GC_BRANCH: ${{ inputs.branch }}
         GC_PATH: ${{ inputs.path }}
         GC_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        GC_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action/publish.sh"
