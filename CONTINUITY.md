@@ -22,6 +22,8 @@ The approved visual direction must not change. Phase 2 applied only the four adj
 
 Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
 
+- Phase 3 decisions already taken by the owner (2026-11-09): scheduled workflow every 6 hours (configurable) plus a manual "Run workflow" button; the image is stored on a separate branch (e.g. `constellation`) whose single commit is replaced on each run, so `main` gets no bot commits; the profile README links the image from that branch; storing on `main` (one commit per change) may be offered as an option.
+
 ## Phase 2 behaviour (implemented)
 
 - `--demo` unchanged (fixture, no network). `--live` queries GitHub GraphQL for the login in the config (`config/local.json` by default; template `config/live.example.json`).
