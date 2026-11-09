@@ -39,6 +39,7 @@ Live example (`days` is shortened here; the real array contains every day of the
   "languages": [
     { "name": "PHP", "repositories": 8, "color": "#4f5d95" }
   ],
+  "languagesSource": "ranking",
   "privateContributions": "included",
   "source": {
     "provider": "github",
@@ -65,7 +66,7 @@ Rules enforced by `renderer/validation.ts`:
 - `days` covers every date of `period` inclusively, ordered, without duplicates; the period has 1 to 366 days.
 - `metrics.totalContributions`, `activeDays` and `longestStreak` must agree with `days`.
 - `metrics.pullRequests` and `metrics.codeReviews` are non-negative integers or `null`.
-- `languages` has at most five entries, no duplicates, each with at least one repository and a six-digit hex colour.
+- `languagesSource` is `ranking` or `manual`, right after `languages`. `languages` has at most five entries, no duplicates and a six-digit hex colour per entry. With `ranking`, every `repositories` is an integer of at least 1; with `manual` the list has 1 to 5 entries and every `repositories` is `null`.
 - `generatedAt` is an ISO 8601 UTC timestamp.
 
 `source` carries provenance only: it never contains repository names, branch names, commit messages or pull request titles.
@@ -119,7 +120,7 @@ query($login: String!, $after: String) {
       nodes {
         isArchived isFork visibility
         languages(first: 20, orderBy: { field: SIZE, direction: DESC }) {
-          nodes { name color }
+          edges { size node { name color } }
         }
       }
     }
@@ -127,7 +128,7 @@ query($login: String!, $after: String) {
 }
 ```
 
-It pages 100 repositories at a time, up to 20 pages. A user with more than 2000 eligible public repositories is rejected instead of ranked on a partial list. A language with no colour from GitHub gets `#8b949e`.
+It pages 100 repositories at a time, up to 20 pages. A user with more than 2000 eligible public repositories is rejected instead of ranked on a partial list. Each language edge carries its size in bytes, which only breaks ties in the ranking and is not written to `data.json`. A language with no colour from GitHub gets `#8b949e`.
 
 ## Permissions and token
 
@@ -188,7 +189,13 @@ This is not the window GitHub uses for the profile page, which is week-aligned. 
 
 ## Language criterion
 
-Each language is counted once per eligible repository in which it appears, secondary languages included. Languages are ordered by repository count descending, ties by name ascending, and the top 5 are kept. The criterion is the number of public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which the language appears. The image shows no percentages and no byte sizes. The ranking measures presence in repositories, not experience or proficiency. Languages without a GitHub colour use `#8b949e`.
+Each language is counted once per eligible repository in which it appears, secondary languages included. Languages are ordered by repository count descending, then by total size in bytes across the eligible repositories descending, then by name ascending, and the top 5 are kept. The criterion is the number of public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which the language appears. The image shows no percentages and no byte sizes. The ranking measures presence in repositories, not experience or proficiency. Languages without a GitHub colour use `#8b949e`.
+
+Non-programming languages are excluded by default: CSS, SCSS, Sass, Less, Stylus, HTML, Markdown, MDX, Dockerfile, Makefile, Mako, Jinja, Twig, Blade, Handlebars, Mustache, Pug, XML, JSON, YAML, TOML, Text and Procfile. GitHub's GraphQL `Language` object does not expose Linguist's language type, so the exclusion is a list of names, compared case-insensitively. The optional `excludeLanguages` config key (a list of names) replaces the default list; `[]` disables exclusions. Demo fixture repositories carry no sizes, so a missing size counts as 0.
+
+### Manual language list
+
+The optional `languages` config key (1 to 5 entries, each a name or `{ "name": ..., "color": "#rrggbb" }`, names unique ignoring case) replaces the ranking in demo and live modes. The order is kept. A colour GitHub reported (live) or the fixture gave (demo) wins over the configured one; without either, `#8b949e`. The entries have `repositories: null`, `languagesSource` is `manual`, the image footnote reads `Selected by the developer`, and the CLI line reads `Top Languages (selected): PHP, TypeScript`.
 
 Eligible repositories are public, not forks and not archived, and the user owns them, collaborates on them or can reach them through an organization membership. Query B filters affiliation, public and non-fork; the ranking additionally skips archived ones.
 

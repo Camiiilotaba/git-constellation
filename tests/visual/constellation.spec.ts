@@ -5,7 +5,7 @@ import { exportImage, preparePage } from '../../renderer/export.js';
 import { loadAssets, renderHtml } from '../../renderer/template.js';
 import { CHART } from '../../renderer/transform.js';
 import type { ConstellationData } from '../../renderer/types.js';
-import { demoData, liveData, recalculate } from '../ts/fixtures.js';
+import { demoData, liveData, manualLanguages, recalculate } from '../ts/fixtures.js';
 
 async function render(page: Page, data: ConstellationData): Promise<void> {
   await preparePage(page, renderHtml(data, await loadAssets()));
@@ -51,6 +51,14 @@ test('demo matches the panoramic screenshot baseline entirely offline', async ({
   expect(requests).toEqual([]);
   expect(errors).toEqual([]);
   await assertNoMetricOverflow(page);
+});
+
+test('live mode with a manually selected language list', async ({ page }) => {
+  await render(page, liveData({ languagesSource: 'manual', languages: manualLanguages() }));
+  await expect(page.locator('.language-criterion')).toHaveText('Selected by the developer');
+  await expect(page.locator('.languages')).toHaveAttribute('aria-label', 'Languages selected by the developer');
+  await expect(page.locator('.language-name')).toHaveText(['TypeScript', 'PHP', 'Rust']);
+  await expect(page.locator('main')).toHaveScreenshot('live-manual-languages.png');
 });
 
 const readmeCases = [

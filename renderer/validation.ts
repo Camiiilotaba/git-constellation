@@ -98,15 +98,22 @@ export function validateData(input: unknown): ConstellationData {
   if (metrics.totalContributions !== total || metrics.activeDays !== active || metrics.longestStreak !== longest) {
     throw new Error('Calendar metrics must agree with the supplied daily contributions.');
   }
+  if (root.languagesSource !== 'ranking' && root.languagesSource !== 'manual') throw new Error("languagesSource must be 'ranking' or 'manual'.");
+  const manual = root.languagesSource === 'manual';
   if (!Array.isArray(root.languages) || root.languages.length > 5) throw new Error('languages must contain at most five entries.');
+  if (manual && root.languages.length === 0) throw new Error('A manual language list must contain 1 to 5 entries.');
   const names = new Set<string>();
   for (const [index, entry] of root.languages.entries()) {
     const language = object(entry, `languages[${index}]`);
     text(language.name, `languages[${index}].name`, 80);
     if (names.has(language.name.toLowerCase())) throw new Error('languages must not contain duplicates.');
     names.add(language.name.toLowerCase());
-    integer(language.repositories, `languages[${index}].repositories`);
-    if (language.repositories === 0) throw new Error('A ranked language must appear in at least one repository.');
+    if (manual) {
+      if (language.repositories !== null) throw new Error(`languages[${index}].repositories must be null for a manual list.`);
+    } else {
+      integer(language.repositories, `languages[${index}].repositories`);
+      if (language.repositories === 0) throw new Error('A ranked language must appear in at least one repository.');
+    }
     color(language.color, `languages[${index}].color`);
   }
   if (!PRIVATE_STATES.includes(root.privateContributions as string)) {

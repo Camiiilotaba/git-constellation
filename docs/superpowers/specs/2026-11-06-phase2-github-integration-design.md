@@ -520,3 +520,5 @@ A read-only spike against the owner's account (classic `read:user` token) change
 4. **The spike and the decisions are documented** in `docs/phase-2.md`, `README.md` (including the two usage scenarios) and `renderer/README.md`.
 
 2026-11-09: the GitHub profile's yearly figure can exceed the API calendar (about 3%, private organization activity the API does not return to the token); the image keeps the API figure, with no scraping and no estimates (see `docs/phase-2.md`).
+
+2026-11-09: the language ranking excludes non-programming languages by default (a name list, replaceable with `excludeLanguages`), breaks repository-count ties by total code size, and an optional `languages` config list replaces the ranking; `data.json` v2 gains `languagesSource` (`ranking` or `manual`) and `languages[].repositories` may be `null` in manual mode (see `docs/phase-2.md`).

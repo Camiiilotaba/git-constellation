@@ -91,7 +91,9 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const compactPeriod = formatMonth(data.period.start) === formatMonth(data.period.end) ? formatMonth(data.period.start) : `${formatMonth(data.period.start)} – ${formatMonth(data.period.end)}`;
   const demo = data.mode === 'demo';
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
-  const languages = [...data.languages].sort((a, b) => b.repositories - a.repositories || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const manual = data.languagesSource === 'manual';
+  const languages = manual ? data.languages : [...data.languages].sort((a, b) => (b.repositories ?? 0) - (a.repositories ?? 0) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const languagesNote = manual ? 'Languages were selected by the developer.' : 'Language ranking counts eligible public repositories, including secondary languages.';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'"/>
@@ -108,8 +110,8 @@ ${assets.stylesheet}
 <div class="brand"><div class="brand-title">DEVELOPER CONSTELLATION</div>${demo ? '<div class="demo">DEMO / SIMULATED DATA</div>' : ''}</div>
 <section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-mark">${icon('contribution')}</div><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon('calendar')}<span>${compactPeriod}</span></div></div></section>
 ${constellation(data)}
-<aside class="languages" aria-label="Languages ranked by public repository count"><h2>${icon('code')}Top Languages</h2>
-${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(language.name)}: ${language.repositories} public repositories"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol><p class="language-criterion">By public repository count</p>` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>
+<aside class="languages" aria-label="${manual ? 'Languages selected by the developer' : 'Languages ranked by public repository count'}"><h2>${icon('code')}Top Languages</h2>
+${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(manual ? language.name : `${language.name}: ${language.repositories} public repositories`)}"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol><p class="language-criterion">${manual ? 'Selected by the developer' : 'By public repository count'}</p>` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>
 <div class="metrics">
 ${metric('Pull Requests', metrics.pullRequests, 'branch', activityTitle)}
 ${metric('Code Reviews', metrics.codeReviews, 'review', activityTitle)}
@@ -117,7 +119,7 @@ ${metric('Active Days', metrics.activeDays, 'calendar')}
 ${metric('Longest Streak', metrics.longestStreak, 'flame')}
 </div>
 <p class="sr-only">${demo
-  ? `This is a demonstration with simulated data, not live GitHub statistics. Username: ${escapeText(profile.username)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. Language ranking counts eligible public repositories, including secondary languages.`
-  : `Live GitHub statistics for ${escapeText(profile.username)}, generated ${escapeText(data.generatedAt)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. ${PRIVACY_SENTENCE[data.privateContributions]} Pull requests and code reviews count activity visible to the token and may exclude private activity. Language ranking counts eligible public repositories, including secondary languages.`}</p>
+  ? `This is a demonstration with simulated data, not live GitHub statistics. Username: ${escapeText(profile.username)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. ${languagesNote}`
+  : `Live GitHub statistics for ${escapeText(profile.username)}, generated ${escapeText(data.generatedAt)}. ${metrics.totalContributions} contributions; ${metrics.activeDays} active days. ${PRIVACY_SENTENCE[data.privateContributions]} Pull requests and code reviews count activity visible to the token and may exclude private activity. ${languagesNote}`}</p>
 </main></body></html>`;
 }

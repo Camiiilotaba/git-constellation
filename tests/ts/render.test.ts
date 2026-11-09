@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets, renderHtml, type RenderAssets } from '../../renderer/template.js';
-import { demoData, liveData, recalculate, shortData } from './fixtures.js';
+import { demoData, liveData, manualLanguages, recalculate, shortData } from './fixtures.js';
 import { smoothPath, weeklyPoints } from '../../renderer/transform.js';
 
 let assets: RenderAssets;
@@ -45,6 +45,25 @@ describe('HTML composition', () => {
     expect(html.indexOf('>Beta</span>')).toBeLessThan(html.indexOf('>Alpha</span>'));
     expect(html.indexOf('>Alpha</span>')).toBeLessThan(html.indexOf('>Zeta</span>'));
     expect(data.languages[0]!.name).toBe('Zeta');
+  });
+
+  it('keeps a manual language list in the given order with its own footnote and titles', () => {
+    const data = liveData({ languagesSource: 'manual', languages: manualLanguages() });
+    const html = renderHtml(data, assets);
+    expect(html.indexOf('>TypeScript</span>')).toBeLessThan(html.indexOf('>PHP</span>'));
+    expect(html.indexOf('>PHP</span>')).toBeLessThan(html.indexOf('>Rust</span>'));
+    expect(html).toContain('<p class="language-criterion">Selected by the developer</p>');
+    expect(html).toContain('aria-label="Languages selected by the developer"');
+    expect(html).toContain('<li title="TypeScript">');
+    expect(html).not.toContain('By public repository count');
+    expect(html).not.toContain('public repositories"');
+    expect(html).not.toContain('Language ranking counts eligible public repositories');
+  });
+
+  it('keeps the ranking footnote and aria-label in ranking mode', () => {
+    const html = renderHtml(demoData(), assets);
+    expect(html).toContain('<p class="language-criterion">By public repository count</p>');
+    expect(html).toContain('aria-label="Languages ranked by public repository count"');
   });
 
   it('clearly distinguishes decorative branches from the measured data series', () => {

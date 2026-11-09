@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDate, validateData } from '../../renderer/validation.js';
-import { demoData, liveData, shortData } from './fixtures.js';
+import { demoData, liveData, manualLanguages, shortData } from './fixtures.js';
 
 describe('offline data boundary', () => {
   it('accepts a complete fixture and nullable unavailable metrics', () => {
@@ -62,6 +62,27 @@ describe('offline data boundary', () => {
     expect(() => validateData(data)).toThrow(/duplicates/);
     data.languages.pop(); data.languages[1]!.name = 'JavaScript'; data.languages[0]!.repositories = 0;
     expect(() => validateData(data)).toThrow(/at least one/);
+  });
+
+  it('accepts a manual language list and rejects invalid source or repository values', () => {
+    const data = shortData();
+    data.languagesSource = 'manual';
+    data.languages = manualLanguages();
+    expect(() => validateData(data)).not.toThrow();
+    data.languages[0]!.repositories = 3;
+    expect(() => validateData(data)).toThrow(/null/);
+    data.languages = manualLanguages();
+    data.languages = [...data.languages, ...data.languages.map(l => ({ ...l, name: `${l.name}2` }))];
+    expect(() => validateData(data)).toThrow(/at most five/);
+    data.languages = [];
+    expect(() => validateData(data)).toThrow(/1 to 5/);
+    const ranking = shortData();
+    ranking.languages[0]!.repositories = null;
+    expect(() => validateData(ranking)).toThrow(/nonnegative/);
+    expect(() => validateData({ ...shortData(), languagesSource: 'other' })).toThrow(/languagesSource/);
+    const missing: Record<string, unknown> = { ...shortData() };
+    delete missing.languagesSource;
+    expect(() => validateData(missing)).toThrow(/languagesSource/);
   });
 
   it('accepts schema v2 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });

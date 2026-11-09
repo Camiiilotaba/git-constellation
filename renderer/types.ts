@@ -23,7 +23,8 @@ export interface ConstellationData {
     pullRequests: number | null;
     codeReviews: number | null;
   };
-  languages: { name: string; repositories: number; color: string }[];
+  languages: { name: string; repositories: number | null; color: string }[];
+  languagesSource: 'ranking' | 'manual';
   privateContributions: 'included' | 'excluded' | 'unknown';
   source: ConstellationSource | null;
 }

@@ -130,6 +130,7 @@ Active Days: <n>
 Longest Streak: <n>
 Repositories scanned (public, non-fork): <n>
 Top Languages: <name> (<repositories>), ...
+(or, with a manual list: Top Languages (selected): <name>, ...)
 Token scopes: <scopes reported by GitHub>
 Rate limit remaining: <n>
 ```
@@ -166,7 +167,19 @@ The image subtitle shows only the period. The privacy state is in `build/data.js
 
 ### Language criterion
 
-The ranking counts the public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which each language appears (secondary languages included). Ties are broken by name and the top 5 are shown. There are no percentages. It measures presence in repositories, not experience or proficiency.
+The ranking counts the public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership, in which each language appears (secondary languages included). Markup, styling, templating, data and build-file formats are left out by default (CSS, SCSS, Sass, Less, Stylus, HTML, Markdown, MDX, Dockerfile, Makefile, Mako, Jinja, Twig, Blade, Handlebars, Mustache, Pug, XML, JSON, YAML, TOML, Text and Procfile); GitHub's API does not say which languages are programming languages, so this is a list of names, compared ignoring case. Languages are ordered by repository count, then by total code size across those repositories, then by name, and the top 5 are shown. There are no percentages. It measures presence in repositories, not experience or proficiency.
+
+To change the exclusions, set `excludeLanguages` in your config to a list of names. It replaces the default list, and `[]` disables exclusions.
+
+### Choosing your languages
+
+To show exactly the languages you want instead of the ranking, add `languages` to your config: 1 to 5 entries, each a name or an object with a name and a `#rrggbb` colour. The image keeps your order.
+
+```json
+"languages": ["PHP", { "name": "TypeScript", "color": "#3178c6" }]
+```
+
+A colour GitHub reported for that language wins; otherwise your colour is used, then `#8b949e`. The footnote under the list reads `Selected by the developer`, and the `data.json` field `languagesSource` is `manual`. This works in demo and live modes. Names are unique ignoring case.
 
 ### Failure behaviour
 

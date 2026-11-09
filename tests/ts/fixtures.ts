@@ -36,6 +36,7 @@ export function demoData(): ConstellationData {
       { name: 'Python', repositories: 3, color: '#40b9ca' },
       { name: 'SQL', repositories: 2, color: '#24b978' },
     ],
+    languagesSource: 'ranking',
     privateContributions: 'excluded',
     source: null,
   });
@@ -63,4 +64,12 @@ export function shortData(counts: number[] = [1, 0, 2, 3, 0]): ConstellationData
   data.days = counts.map((count, index) => ({ date: `2025-11-${String(index + 1).padStart(2, '0')}`, count }));
   data.period.end = data.days.at(-1)!.date;
   return recalculate(data);
+}
+
+export function manualLanguages(): ConstellationData['languages'] {
+  return [
+    { name: 'TypeScript', repositories: null, color: '#3178c6' },
+    { name: 'PHP', repositories: null, color: '#8580d5' },
+    { name: 'Rust', repositories: null, color: '#dea584' },
+  ];
 }
