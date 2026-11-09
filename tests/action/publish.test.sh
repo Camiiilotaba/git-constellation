@@ -84,6 +84,36 @@ if GC_REPO=$tmp/work GC_IMAGE=$tmp/missing.png bash "$publish" >/dev/null 2>&1; 
 else
     check 'fails without an image' failed failed
 fi
+git -C "$tmp/seed" switch --quiet -c notes
+echo 'keep me' > "$tmp/seed/notes.txt"
+git -C "$tmp/seed" add notes.txt
+git -C "$tmp/seed" commit --quiet -m 'Notes'
+git -C "$tmp/seed" push --quiet origin notes
+git -C "$tmp/seed" switch --quiet --orphan bare-orphan
+echo 'other' > "$tmp/seed/README.md"
+git -C "$tmp/seed" add README.md
+git -C "$tmp/seed" commit --quiet -m 'Foreign orphan'
+git -C "$tmp/seed" push --quiet origin bare-orphan
+for foreign in notes bare-orphan; do
+    before=$(remote_git rev-parse "$foreign")
+    if run "$tmp/two.png" "$foreign" 2>/dev/null; then
+        check "refuses to overwrite foreign branch $foreign" overwritten refused
+    else
+        check "refuses to overwrite foreign branch $foreign" refused refused
+    fi
+    check "foreign branch $foreign is untouched" "$(remote_git rev-parse "$foreign")" "$before"
+done
+
+output=$(GC_TOKEN=secret-token-value GC_REPO=$tmp/work GC_IMAGE=$tmp/one.png bash "$publish" 2>&1)
+check 'publishes with a token supplied through the environment' "$(remote_git show constellation:constellation.png)" 'first image'
+encoded=$(printf 'x-access-token:secret-token-value' | base64)
+if printf '%s\n' "$output" | cat - "$tmp/work/.git/config" | grep -qF -e secret-token-value -e "$encoded"; then
+    check 'token never appears in output or git config' leaked hidden
+else
+    check 'token never appears in output or git config' hidden hidden
+fi
+second=$(remote_git rev-parse constellation)
+
 check 'the checked-out working tree is untouched' "$(git -C "$tmp/work" status --porcelain)" ''
 check 'failed runs leave the published image untouched' "$(remote_git rev-parse constellation)" "$second"
 
