@@ -215,6 +215,19 @@ final class LiveStatisticsTest extends TestCase
         self::assertSame(PrivateContributions::Excluded, $snapshot->privateContributions);
     }
 
+    public function testActionsBotViewerIsNeverTheOwnAccount(): void
+    {
+        // A GitHub Actions token identifies as the bot, so private inclusion must come from restricted signals only.
+        $body = $this->withViewer($this->fixture('contributions-no-restricted'), 'github-actions[bot]');
+
+        $snapshot = $this->statistics([$this->response($body, ''), ...$this->repositoryPages()])
+            ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
+
+        self::assertFalse($snapshot->ownAccount);
+        self::assertSame([], $snapshot->tokenScopes);
+        self::assertSame(PrivateContributions::Excluded, $snapshot->privateContributions);
+    }
+
     private function withViewer(string $body, string $viewer): string
     {
         return str_replace('"login": "someone-else"', '"login": "' . $viewer . '"', $body);

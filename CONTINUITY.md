@@ -1,13 +1,14 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-09 (Phase 2 closed)
+Last updated: 2026-11-09 (Phase 3 implemented locally)
 
 ## Current state
 
 - Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
 - Branching model (owner, 2026-11-09): `main` holds released states only; `develop` is the integration branch; work happens on `feature/*` branches merged into `develop` with `--no-ff`; `develop` is merged into `main` with `--no-ff` when a phase is approved.
 - Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
-- Phase 3 (GitHub Actions Quick Start) is next, on `feature/phase-3-actions` from `develop`.
+- Phase 3 (GitHub Actions Quick Start) is implemented locally on `feature/phase-3-actions` and independently reviewed (fixes applied). It is pending a real-run spike, which needs the owner's explicit confirmation to publish this repository, create the first tags (`v1.0.0`, `v1`, `latest`; see `docs/releasing.md`) and add the workflow to `Camiiilotaba/Camiiilotaba`. Design and checklist: `docs/phase-3.md`.
+- Open questions for the spike: does `viewer { login }` return a bot login with the Actions `GITHUB_TOKEN` (null or an error fails the run); can that token read `contributionsCollection` and the repositories query, and does it send no `X-OAuth-Scopes`; are the pinned SHAs right (`actions/checkout` v4.2.2 `11bd7190…`, `actions/setup-node` v4.4.0 `49933ea5…`); which Node ubuntu-24.04 ships and how long a run takes; does the per-command extra-header push work with `persist-credentials: false` on a shallow checkout, including creating the branch; does `ls-remote --symref` resolve the default branch; do bot pushes to the non-default `constellation` branch count as activity for GitHub's 60-day scheduled-workflow rule.
 - Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
 - Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
@@ -17,7 +18,7 @@ Git Constellation is an open-source CLI that renders a panoramic GitHub activity
 
 The approved visual direction must not change. Phase 2 applied only the four adjustments the owner approved: no `ACTIVITY • CODE • CONTRIBUTIONS` line, no secondary captions under the metric cards, the DEMO badge only in demo mode, and a three-state privacy subtitle.
 
-Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
+Phase 3 shape (implemented as a composite action `action.yml`, not a reusable workflow; referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
 
 - Phase 3 decisions already taken by the owner (2026-11-09): scheduled workflow every 6 hours (configurable) plus a manual "Run workflow" button; the image is stored on a separate branch (e.g. `constellation`) whose single commit is replaced on each run, so `main` gets no bot commits; the profile README links the image from that branch; storing on `main` (one commit per change) may be offered as an option.
 
