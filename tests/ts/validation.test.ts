@@ -95,6 +95,7 @@ describe('offline data boundary', () => {
 
   it('keeps the 366-day limit for weekly periods only', () => {
     const data = allTimeData();
+    data.period.kind = 'last-year';
     data.period.granularity = 'week';
     expect(() => validateData(data)).toThrow(/366/);
   });
@@ -102,6 +103,8 @@ describe('offline data boundary', () => {
   it('rejects an unknown period kind or granularity', () => {
     expect(() => validateData({ ...demoData(), period: { ...demoData().period, kind: 'calendar-year' as never } })).toThrow(/period.kind/);
     expect(() => validateData({ ...demoData(), period: { ...demoData().period, granularity: 'day' as never } })).toThrow(/period.granularity/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, kind: 'all-time' } })).toThrow(/must match/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, granularity: 'month' } })).toThrow(/must match/);
     const { kind: _kind, ...withoutKind } = demoData().period;
     expect(() => validateData({ ...demoData(), period: withoutKind as never })).toThrow(/period.kind/);
   });

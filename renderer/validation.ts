@@ -73,6 +73,9 @@ export function validateData(input: unknown): ConstellationData {
   const end = parseDate(period.end, 'period.end');
   if (period.kind !== 'all-time' && period.kind !== 'last-year') throw new Error("period.kind must be 'all-time' or 'last-year'.");
   if (period.granularity !== 'month' && period.granularity !== 'week') throw new Error("period.granularity must be 'month' or 'week'.");
+  if ((period.kind === 'all-time') !== (period.granularity === 'month')) {
+    throw new Error("period.kind and period.granularity must match: 'all-time' with 'month', 'last-year' with 'week'.");
+  }
   const expectedDays = (end - start) / DAY_MS + 1;
   const weekly = period.granularity === 'week';
   if (expectedDays < 1 || (weekly && expectedDays > 366)) {
