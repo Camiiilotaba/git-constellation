@@ -67,7 +67,7 @@ final class SummaryTest extends TestCase
             . "Code Reviews (visible to token): 5\n"
             . "Active Days: 3\n"
             . "Longest Streak: 2\n"
-            . "Repositories scanned (public, owned, non-fork): 12\n"
+            . "Repositories scanned (public, non-fork): 12\n"
             . "Top Languages: PHP (8), TypeScript (4)\n"
             . "Token scopes: read:user\n"
             . "Rate limit remaining: 4987\n";

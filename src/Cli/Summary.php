@@ -31,7 +31,7 @@ final class Summary
             "Code Reviews (visible to token): {$snapshot->codeReviews}",
             "Active Days: {$metrics->activeDays}",
             "Longest Streak: {$metrics->longestStreak}",
-            "Repositories scanned (public, owned, non-fork): {$snapshot->repositoriesScanned}",
+            "Repositories scanned (public, non-fork): {$snapshot->repositoriesScanned}",
             'Top Languages: ' . ($languages === '' ? 'none' : $languages),
             'Token scopes: ' . ($scopes === '' ? '(not reported)' : $scopes),
             "Rate limit remaining: {$snapshot->rateLimitRemaining}",
