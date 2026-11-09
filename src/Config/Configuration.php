@@ -26,7 +26,6 @@ final readonly class Configuration
         public string $period,
     ) {}
 
-
     /** @param array<string, mixed> $data */
     public static function fromArray(array $data, ?string $outputOverride = null, string $defaultOutput = 'dist/constellation.png'): self
     {
