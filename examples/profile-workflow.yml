@@ -1,0 +1,27 @@
+# Copy to .github/workflows/constellation.yml in your profile repository (<login>/<login>).
+name: Git Constellation
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # every 6 hours (UTC); edit to change the schedule
+  workflow_dispatch:
+
+permissions:
+  contents: write # lets the automatic GITHUB_TOKEN push the image branch
+
+concurrency:
+  group: git-constellation
+  cancel-in-progress: false
+
+jobs:
+  constellation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: Camiiilotaba/git-constellation@v1
+        with:
+          name: Your Name
+          role: Your Role
+          stack: PHP / TypeScript
+          # Optional: a classic token with only read:user adds private contribution counts.
+          # token: ${{ secrets.CONSTELLATION_TOKEN }}
