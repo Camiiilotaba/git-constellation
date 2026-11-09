@@ -518,3 +518,5 @@ A read-only spike against the owner's account (classic `read:user` token) change
 2. **The subtitle shows only the period.** The privacy phrase and the lock icon are removed. The state is exposed in `data.json`, the CLI summary and a screen-reader sentence.
 3. **Languages come from more repositories.** Query B uses `ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]`: public, non-fork, non-archived repositories the user owns, collaborates on, or can access through an organization membership.
 4. **The spike and the decisions are documented** in `docs/phase-2.md`, `README.md` (including the two usage scenarios) and `renderer/README.md`.
+
+2026-11-09: the GitHub profile's yearly figure can exceed the API calendar (about 3%, private organization activity the API does not return to the token); the image keeps the API figure, with no scraping and no estimates (see `docs/phase-2.md`).

@@ -177,6 +177,7 @@ final class LiveStatisticsTest extends TestCase
 
     public function testOtherAccountWithoutRestrictedIsExcluded(): void
     {
+        // 621 makes the five visible totals equal the in-period sum (730), so the Excluded branch is reachable.
         $snapshot = $this->statistics([$this->response($this->fixture('contributions-no-restricted')), ...$this->repositoryPages()])
             ->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'));
 

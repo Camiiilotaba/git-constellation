@@ -91,7 +91,7 @@ The keys are `username`, `name`, `role`, `stack`, `output` and `colors.cyan` / `
 
 Live mode fetches real statistics for one GitHub user over a rolling one-year period and renders them with the same renderer. It runs locally. It needs a token and network access to `api.github.com`.
 
-1. **Create a token.** On GitHub, go to Settings, Developer settings, Personal access tokens, Tokens (classic). Create a classic token with **only** the `read:user` scope. Do not grant `repo`: it is not needed, and a token that reports it is rejected. Fine-grained tokens are unverified.
+1. **Create a token.** On GitHub, go to Settings, Developer settings, Personal access tokens, Tokens (classic). Create a classic token with **only** the `read:user` scope. Do not grant `repo`: it is not needed, and a token that reports it is rejected. Fine-grained tokens work with caveats; see Known limitations below.
 2. **Store the token.** Either export it for the session, or copy `.env.example` to `.env` and set it there. `.env` is gitignored.
 
    ```sh
@@ -128,7 +128,7 @@ Pull Requests (visible to token): <n>
 Code Reviews (visible to token): <n>
 Active Days: <n>
 Longest Streak: <n>
-Repositories scanned (public, owned, non-fork): <n>
+Repositories scanned (public, non-fork): <n>
 Top Languages: <name> (<repositories>), ...
 Token scopes: <scopes reported by GitHub>
 Rate limit remaining: <n>
@@ -157,6 +157,12 @@ The image subtitle shows only the period. The privacy state is in `build/data.js
 | `included` | Your own account, or GitHub reported restricted (private) contributions |
 | `excluded` | No restricted signal and the totals add up to the visible activity |
 | `unknown` | Neither could be established; the figure is not claimed to be complete |
+
+### Known limitations
+
+- The total can be slightly lower than the "contributions in the last year" figure on the GitHub profile. GitHub's profile counts some activity in private repositories that the GraphQL API does not return to the token (observed: about 3% lower, all of it in private organization repositories). The image always shows the figure the API confirms; it never adds estimates.
+- Languages come from public repositories only. Private repositories cannot be listed with the `read:user` scope, so a language you use only in private work does not appear.
+- Fine-grained tokens work but report private activity differently: the calendar total is the same, while Pull Requests and Code Reviews count public activity only. Use a classic token with `read:user` to include your private pull requests and reviews as counts.
 
 ### Language criterion
 

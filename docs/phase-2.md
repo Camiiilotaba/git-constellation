@@ -133,7 +133,7 @@ It pages 100 repositories at a time, up to 20 pages. A user with more than 2000 
 
 - Create a **classic personal access token** with **only** the `read:user` scope. This is the verified configuration.
 - A token that reports the `repo` scope is rejected with an error before the repositories query runs. The scope is not needed, and it would expose private pull request and review activity to the tool.
-- **Fine-grained tokens are unverified.** They may work for public data, but this project has not tested them and does not document a permission set for them.
+- **Fine-grained tokens are verified with caveats.** A fine-grained token (resource owner: the user, public repositories read-only) returns the same calendar total, but private activity moves into `restrictedContributionsCount` and the Pull Request and Code Review counts are public only. Use a classic token to include private pull requests and reviews as counts.
 - The token is read from `GITHUB_TOKEN` in the process environment; if that is empty or unset, from `<project root>/.env`. The process environment wins.
 - The `.env` file is parsed, not loaded: the token is never exported into the PHP process environment.
 - The Node renderer never receives the token. The child process environment is filtered of every variable whose name contains `TOKEN`, `SECRET` or `PASSWORD`.
@@ -237,11 +237,19 @@ Run after `php bin/constellation --live --config=config/local.json`. Use the sam
 - For another account, Pull Requests and Code Reviews count only public activity; for the token owner's own account they include private activity as counts.
 - Languages ignore private repositories, forks and archived repositories.
 - More than 2000 eligible public repositories are rejected.
-- Fine-grained tokens are unverified.
+- Fine-grained tokens work but report Pull Requests and Code Reviews as public only (see Permissions and token).
 - `privateContributions` can be `unknown`; the screen-reader text then says the totals cover activity visible to the token.
 - The period is a rolling UTC window and does not match the week-aligned profile figure.
 - The visual baselines in `tests/visual` are macOS and Chromium only.
 - The calendar total can exceed the sum of the five visible totals by a small amount for unknown reasons (spike fact 5), which keeps `excluded` strict.
+
+## Known differences with the GitHub profile
+
+- The profile's yearly figure exceeded the API calendar by a stable amount over several days. The extra days were weekdays spread over nine months, one to three contributions per day, and the public profile labels them "contributions in private repositories".
+- Ruled out: the date window (querying without `from`/`to`, GitHub's default window, returns the same total), `viewer` vs `user(login:)` (identical), SAML SSO (no `X-GitHub-SSO` response header) and public commits (counted identically by both).
+- A fine-grained token (resource owner: the user, public repositories read-only) returned the same calendar total; it moved private activity into `restrictedContributionsCount` and reported public-only PR and review counts.
+- Likely cause: activity in private organization repositories that GitHub counts for the profile but does not expose through the API to the user's token (for example repositories the user no longer has access to, or organizations that restrict personal access tokens). Not fixable in this tool; an organization owner could try allowing personal access tokens.
+- Decision: the image shows the API figure. No scraping of the profile HTML (not an official API) and no estimates.
 
 ## Planned compatibility with Quick Start
 
