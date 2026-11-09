@@ -1,16 +1,17 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 
 ## Current state
 
 - Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
 - `main` holds the approved Phase 1 (commit `58caed4`).
 - Branch `phase-2-github-integration` holds Phase 2: live GitHub mode, fully implemented, task-reviewed and whole-branch-reviewed (see `docs/superpowers/plans/2026-11-06-phase2-github-integration.md` and the spec next to it). Not merged into `main` yet.
-- Phase 2 **code is complete**. What is still open, in order:
-  1. Read-only spike against the owner's own account (needs `.env` with `GITHUB_TOKEN`, classic token, `read:user` only). It fills the "Real-API check" in `docs/phase-2.md` (which of the two sums GitHub's `totalContributions` equals; whether a 366-day span is accepted).
-  2. First real run: `php bin/constellation --live --config=config/local.json`, manual verification per `docs/phase-2.md` ("Manual verification"), and the owner's visual review of `dist/live.png` at 1920 px and README width.
-  3. Owner's explicit approval of Phase 2 before anything of Phase 3 starts.
+- Phase 2 **code is complete and verified against the owner's real account** (spike done, `docs/phase-2.md` "Real-API check" filled, live image generated at `dist/live.png`). Open:
+  1. Owner's visual approval of `dist/live.png` (1920 px and README width).
+  2. After approval: merge `phase-2-github-integration` into `main` locally (no push unless asked).
+  3. Owner's explicit approval before anything of Phase 3 starts.
+- Known, accepted limitation: the API calendar total is about 3% below the profile's "contributions in the last year" (activity in private organization repositories the API does not return to the token). Investigated and documented in `docs/phase-2.md` ("Known differences with the GitHub profile"); the image shows the API figure, never estimates or profile scraping.
 - Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each task reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized, no push.
 
 ## Product and agreed limits
@@ -19,15 +20,15 @@ Git Constellation is an open-source CLI that renders a panoramic GitHub activity
 
 The approved visual direction must not change. Phase 2 applied only the four adjustments the owner approved: no `ACTIVITY • CODE • CONTRIBUTIONS` line, no secondary captions under the metric cards, the DEMO badge only in demo mode, and a three-state privacy subtitle.
 
-Future shape (Phase 3, not started): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
+Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
 
 ## Phase 2 behaviour (implemented)
 
 - `--demo` unchanged (fixture, no network). `--live` queries GitHub GraphQL for the login in the config (`config/local.json` by default; template `config/live.example.json`).
-- Token: `GITHUB_TOKEN` from the process environment, else `<root>/.env` (parsed, never exported). Classic token with only `read:user`. A token with the `repo` scope is rejected. Fine-grained tokens are unverified.
+- Token: `GITHUB_TOKEN` from the process environment, else `<root>/.env` (parsed, never exported). Classic token with only `read:user`. A token with the `repo` scope is rejected. Fine-grained tokens work but give public-only PR/review counts; classic `read:user` is recommended.
 - Period: rolling 365 days ending today UTC (366 when the span contains Feb 29 and ends after it).
-- Metrics: daily calendar, total, active days and longest streak include anonymized private counts when the profile owner shares them; Pull Requests and Code Reviews count only token-visible activity; languages from public, owned, non-fork, non-archived repositories (organizations excluded in V1), counted by repository presence, top 5, no percentages.
-- Private-contributions label: `included` only on explicit GitHub restricted signals; `excluded` only when no restricted signal and the in-period calendar sum equals the five visible totals; otherwise `unknown` ("visible activity only").
+- Metrics: daily calendar, total, active days and longest streak include anonymized private counts when the profile owner shares them; Pull Requests and Code Reviews count only token-visible activity; languages from public, non-fork, non-archived repositories the user owns, collaborates on or reaches through an organization, counted by repository presence, top 5, no percentages. For the token owner's own account, totals, PRs and reviews include private activity as counts (spike verified).
+- Private-contributions state: `included` on explicit signals only (restricted count > 0, `hasAnyRestrictedContributions`, or the token belongs to the queried account); `excluded` only with no signal and exact arithmetic; otherwise `unknown`. The image subtitle shows only the period; the state lives in `data.json`, the CLI summary and the screen-reader text.
 - Failures (auth, rate limit, network, GraphQL errors, malformed data, unknown user, > 2000 repos) exit 1, print `Error:` to STDERR, write nothing, never fall back to demo. The token never appears in output, files, exceptions or the Node child process (environment filtered by name and by value).
 - Live output defaults to `dist/live.png` (gitignored); live mode refuses to write `dist/constellation.png`, the committed demo image.
 - `build/data.json` is schema v2, shared by demo and live (`mode`, `generatedAt`, `privateContributions`, `source`).
