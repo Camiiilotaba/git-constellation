@@ -12,6 +12,7 @@ use GitConstellation\GitHub\GitHubErrorKind;
 use GitConstellation\GitHub\GraphQlClient;
 use GitConstellation\GitHub\LiveStatistics;
 use GitConstellation\GitHub\RepositoriesQuery;
+use GitConstellation\Statistics\LanguageRanking;
 use GitConstellation\Statistics\PrivateContributions;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -95,6 +96,35 @@ final class LiveStatisticsTest extends TestCase
         self::assertSame(['read:user'], $snapshot->tokenScopes);
         self::assertSame($generatedAt, $snapshot->generatedAt);
         self::assertSame(4, $this->requests);
+    }
+
+    public function testManualLanguagesReplaceTheRankingAndTakeReportedColors(): void
+    {
+        $statistics = $this->statistics([$this->response($this->fixture('contributions-ok')), ...$this->repositoryPages()]);
+
+        $snapshot = $statistics->collect(
+            'octo-sample',
+            $this->period(),
+            new DateTimeImmutable('2026-11-06T12:00:00Z'),
+            LanguageRanking::DEFAULT_EXCLUDED,
+            [['name' => 'Zork', 'color' => '#123456'], ['name' => 'php', 'color' => '#654321'], ['name' => 'Go', 'color' => '#00add8']],
+        );
+
+        self::assertSame('manual', $snapshot->languagesSource);
+        self::assertSame(['Zork', 'php', 'Go'], array_column($snapshot->languages, 'name'));
+        self::assertSame([null, null, null], array_column($snapshot->languages, 'repositories'));
+        self::assertSame(['#123456', '#4f5d95', '#00add8'], array_column($snapshot->languages, 'color'));
+    }
+
+    public function testExcludedLanguagesArePassedThrough(): void
+    {
+        $statistics = $this->statistics([$this->response($this->fixture('contributions-ok')), ...$this->repositoryPages()]);
+
+        $snapshot = $statistics->collect('octo-sample', $this->period(), new DateTimeImmutable('2026-11-06T12:00:00Z'), ['PHP', 'JavaScript']);
+
+        self::assertSame('ranking', $snapshot->languagesSource);
+        self::assertNotContains('PHP', array_column($snapshot->languages, 'name'));
+        self::assertNotContains('JavaScript', array_column($snapshot->languages, 'name'));
     }
 
     public function testZeroActivityAndNoRepositories(): void

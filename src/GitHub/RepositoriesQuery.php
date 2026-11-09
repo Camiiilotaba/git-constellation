@@ -18,7 +18,7 @@ query($login: String!, $after: String) {
       nodes {
         isArchived isFork visibility
         languages(first: 20, orderBy: { field: SIZE, direction: DESC }) {
-          nodes { name color }
+          edges { size node { name color } }
         }
       }
     }
@@ -79,7 +79,7 @@ GRAPHQL;
         throw new GitHubApiException(GitHubErrorKind::Response, 'More than 2000 public repositories; refusing to rank languages on a partial list');
     }
 
-    /** @return array{visibility: string, isFork: bool, isArchived: bool, languages: list<array{name: string, color: string}>} */
+    /** @return array{visibility: string, isFork: bool, isArchived: bool, languages: list<array{name: string, color: string, size: int}>} */
     private function repository(mixed $node): array
     {
         if (!is_array($node)) {
@@ -108,26 +108,31 @@ GRAPHQL;
 
     /**
      * @param array<mixed> $node
-     * @return list<array{name: string, color: string}>
+     * @return list<array{name: string, color: string, size: int}>
      */
     private function languages(array $node): array
     {
-        $languageNodes = $this->object($this->object($node, 'languages', 'repositories.nodes[].languages'), 'nodes', 'repositories.nodes[].languages.nodes');
+        $edges = $this->object($this->object($node, 'languages', 'repositories.nodes[].languages'), 'edges', 'repositories.nodes[].languages.edges');
 
         $languages = [];
-        foreach ($languageNodes as $language) {
-            if ($language === null) {
+        foreach ($edges as $edge) {
+            if ($edge === null) {
                 continue;
             }
+            $size = is_array($edge) ? ($edge['size'] ?? null) : null;
+            if (!is_int($size) || $size < 0) {
+                throw $this->invalid('languages.edges[].size');
+            }
+            $language = is_array($edge) ? ($edge['node'] ?? null) : null;
             $name = is_array($language) ? ($language['name'] ?? null) : null;
             if (!is_string($name)) {
-                throw $this->invalid('languages.nodes[].name');
+                throw $this->invalid('languages.edges[].node.name');
             }
             $color = $language['color'] ?? null;
             if ($color !== null && !is_string($color)) {
-                throw $this->invalid('languages.nodes[].color');
+                throw $this->invalid('languages.edges[].node.color');
             }
-            $languages[] = ['name' => $name, 'color' => $color ?? self::FALLBACK_COLOR];
+            $languages[] = ['name' => $name, 'color' => $color ?? self::FALLBACK_COLOR, 'size' => $size];
         }
 
         return $languages;

@@ -65,7 +65,7 @@ final class RepositoriesQueryTest extends TestCase
         $result = $this->query($this->threePages())->fetch('octo-sample');
 
         self::assertContains(
-            ['name' => 'Zork', 'color' => RepositoriesQuery::FALLBACK_COLOR],
+            ['name' => 'Zork', 'color' => RepositoriesQuery::FALLBACK_COLOR, 'size' => 1000],
             $result->repositories[4]['languages'],
         );
         $names = array_column(LanguageRanking::calculate($result->repositories), 'name');
@@ -115,6 +115,22 @@ final class RepositoriesQueryTest extends TestCase
             self::assertSame(GitHubErrorKind::NotFound, $exception->kind);
             self::assertSame('GitHub user not found: ghost', $exception->getMessage());
         }
+    }
+
+    public function testQueryRequestsLanguageSizesBySizeDescending(): void
+    {
+        self::assertStringContainsString('languages(first: 20, orderBy: { field: SIZE, direction: DESC })', RepositoriesQuery::QUERY);
+        self::assertStringContainsString('edges { size node { name color } }', RepositoriesQuery::QUERY);
+    }
+
+    public function testInvalidLanguageSizeIsRejected(): void
+    {
+        $page = json_decode($this->fixture('repositories-page-1'), true);
+        $page['data']['user']['repositories']['nodes'][0]['languages']['edges'][0]['size'] = -5;
+
+        $this->expectException(GitHubApiException::class);
+        $this->expectExceptionMessage('languages.edges[].size');
+        $this->query([json_encode($page)])->fetch('octo-sample');
     }
 
     public function testQueryIncludesOwnedCollaboratedAndOrganizationRepositories(): void

@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RendererDataLiveTest extends TestCase
 {
-    private const array KEYS = ['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'privateContributions', 'source'];
+    private const array KEYS = ['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'languagesSource', 'privateContributions', 'source'];
 
     private function config(): Configuration
     {
@@ -75,6 +75,7 @@ final class RendererDataLiveTest extends TestCase
             'codeReviews' => 33,
         ], $data['metrics']);
         self::assertSame($snapshot->languages, $data['languages']);
+        self::assertSame('ranking', $data['languagesSource']);
         self::assertSame('included', $data['privateContributions']);
         self::assertSame([
             'provider' => 'github',

@@ -14,8 +14,9 @@ final class Summary
     public static function format(LiveSnapshot $snapshot, Period $period): string
     {
         $metrics = ContributionMetrics::calculate($snapshot->calendar);
+        $manual = $snapshot->languagesSource === 'manual';
         $languages = implode(', ', array_map(
-            fn (array $language): string => "{$language['name']} ({$language['repositories']})",
+            fn (array $language): string => $manual ? $language['name'] : "{$language['name']} ({$language['repositories']})",
             $snapshot->languages,
         ));
         $ownAccount = $snapshot->ownAccount ? 'yes' : 'no';
@@ -32,7 +33,7 @@ final class Summary
             "Active Days: {$metrics->activeDays}",
             "Longest Streak: {$metrics->longestStreak}",
             "Repositories scanned (public, non-fork): {$snapshot->repositoriesScanned}",
-            'Top Languages: ' . ($languages === '' ? 'none' : $languages),
+            ($manual ? 'Top Languages (selected): ' : 'Top Languages: ') . ($languages === '' ? 'none' : $languages),
             'Token scopes: ' . ($scopes === '' ? '(not reported)' : $scopes),
             "Rate limit remaining: {$snapshot->rateLimitRemaining}",
         ]) . "\n";

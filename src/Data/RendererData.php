@@ -23,6 +23,7 @@ final class RendererData
             pullRequests: $fixture->pullRequests,
             codeReviews: $fixture->codeReviews,
             languages: $fixture->languages,
+            languagesSource: $fixture->languagesSource,
             privateContributions: 'excluded',
             source: null,
         );
@@ -40,6 +41,7 @@ final class RendererData
             pullRequests: $snapshot->pullRequests,
             codeReviews: $snapshot->codeReviews,
             languages: $snapshot->languages,
+            languagesSource: $snapshot->languagesSource,
             privateContributions: $snapshot->privateContributions->value,
             source: [
                 'provider' => 'github',
@@ -53,7 +55,7 @@ final class RendererData
     }
 
     /**
-     * @param list<array{name: string, repositories: int, color: string}> $languages
+     * @param list<array{name: string, repositories: int|null, color: string}> $languages
      * @param array<string, mixed>|null $source
      * @return array<string, mixed>
      */
@@ -66,6 +68,7 @@ final class RendererData
         int $pullRequests,
         int $codeReviews,
         array $languages,
+        string $languagesSource,
         string $privateContributions,
         ?array $source,
     ): array {
@@ -92,6 +95,7 @@ final class RendererData
                 'codeReviews' => $codeReviews,
             ],
             'languages' => $languages,
+            'languagesSource' => $languagesSource,
             'privateContributions' => $privateContributions,
             'source' => $source,
         ];

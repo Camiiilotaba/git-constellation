@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use GitConstellation\Config\Configuration;
 use GitConstellation\Data\DemoFixture;
 use GitConstellation\Data\RendererData;
+use GitConstellation\Statistics\LanguageRanking;
 use GitConstellation\Support\IntegerRange;
 use GitConstellation\Support\JsonFile;
 use InvalidArgumentException;
@@ -26,7 +27,7 @@ final class RendererDataTest extends TestCase
             new DateTimeImmutable('2026-11-06T12:00:00Z'),
         );
 
-        self::assertSame(['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'privateContributions', 'source'], array_keys($data));
+        self::assertSame(['schemaVersion', 'mode', 'generatedAt', 'profile', 'theme', 'period', 'days', 'metrics', 'languages', 'languagesSource', 'privateContributions', 'source'], array_keys($data));
         self::assertSame(2, $data['schemaVersion']);
         self::assertSame('demo', $data['mode']);
         self::assertSame('2026-11-06T12:00:00Z', $data['generatedAt']);
@@ -39,8 +40,42 @@ final class RendererDataTest extends TestCase
         self::assertSame(['totalContributions' => 1351, 'activeDays' => 327, 'longestStreak' => 20, 'pullRequests' => 136, 'codeReviews' => 84], $data['metrics']);
         self::assertSame(['PHP', 'JavaScript', 'TypeScript', 'Python', 'SQL'], array_column($data['languages'], 'name'));
         self::assertSame([8, 6, 4, 3, 2], array_column($data['languages'], 'repositories'));
+        self::assertSame('ranking', $data['languagesSource']);
         self::assertArrayNotHasKey('repositories', $data);
         self::assertArrayNotHasKey('provenance', $data);
+    }
+
+    public function testManualLanguagesKeepOrderAndResolveColorsFromTheFixture(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $base = JsonFile::read($root . '/config/demo.json');
+        $config = Configuration::fromArray($base + ['languages' => ['SQL', ['name' => 'Rust', 'color' => '#DEA584'], 'Zig', 'php']]);
+        $data = RendererData::fromDemo(
+            $config,
+            DemoFixture::fromArray(JsonFile::read($root . '/fixtures/demo.json'), LanguageRanking::DEFAULT_EXCLUDED, $config->languages),
+            new DateTimeImmutable('2026-11-06T12:00:00Z'),
+        );
+
+        self::assertSame('manual', $data['languagesSource']);
+        self::assertSame(['SQL', 'Rust', 'Zig', 'php'], array_column($data['languages'], 'name'));
+        self::assertSame([null, null, null, null], array_column($data['languages'], 'repositories'));
+        self::assertSame('#dea584', $data['languages'][1]['color']);
+        self::assertSame('#8b949e', $data['languages'][2]['color']);
+        self::assertSame(array_column($data['languages'], 'color')[3], $this->demoColor('PHP', $root));
+    }
+
+    private function demoColor(string $name, string $root): string
+    {
+        $fixture = JsonFile::read($root . '/fixtures/demo.json');
+        foreach ($fixture['repositories'] as $repository) {
+            foreach ($repository['languages'] as $language) {
+                if ($language['name'] === $name) {
+                    return strtolower($language['color']);
+                }
+            }
+        }
+
+        return '';
     }
 
     public function testGeneratedAtIsNormalizedToUtc(): void

@@ -19,8 +19,17 @@ final class LiveStatistics
         private RepositoriesQuery $repositories,
     ) {}
 
-    public function collect(string $login, Period $period, DateTimeImmutable $generatedAt): LiveSnapshot
-    {
+    /**
+     * @param list<string> $excludedLanguages
+     * @param list<array{name: string, color: string|null}>|null $manualLanguages
+     */
+    public function collect(
+        string $login,
+        Period $period,
+        DateTimeImmutable $generatedAt,
+        array $excludedLanguages = LanguageRanking::DEFAULT_EXCLUDED,
+        ?array $manualLanguages = null,
+    ): LiveSnapshot {
         $contributions = $this->contributions->fetch($login, $period);
         $scopes = $this->client->lastScopes();
 
@@ -51,11 +60,14 @@ final class LiveStatistics
                 $ownAccount,
             ),
             $ownAccount,
-            LanguageRanking::calculate($repositories->repositories),
+            $manualLanguages === null
+                ? LanguageRanking::calculate($repositories->repositories, $excludedLanguages)
+                : LanguageRanking::manual($manualLanguages, $repositories->repositories),
             $repositories->scanned,
             $generatedAt,
             $contributions->rateLimitRemaining,
             $scopes,
+            $manualLanguages === null ? 'ranking' : 'manual',
         );
     }
 }

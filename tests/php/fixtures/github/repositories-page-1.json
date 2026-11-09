@@ -12,14 +12,20 @@
             "isFork": false,
             "visibility": "PUBLIC",
             "languages": {
-              "nodes": [
+              "edges": [
                 {
-                  "name": "PHP",
-                  "color": "#4F5D95"
+                  "size": 1000,
+                  "node": {
+                    "name": "PHP",
+                    "color": "#4F5D95"
+                  }
                 },
                 {
-                  "name": "JavaScript",
-                  "color": "#f1e05a"
+                  "size": 1000,
+                  "node": {
+                    "name": "JavaScript",
+                    "color": "#f1e05a"
+                  }
                 }
               ]
             }
@@ -29,10 +35,13 @@
             "isFork": false,
             "visibility": "PUBLIC",
             "languages": {
-              "nodes": [
+              "edges": [
                 {
-                  "name": "PHP",
-                  "color": "#4F5D95"
+                  "size": 1000,
+                  "node": {
+                    "name": "PHP",
+                    "color": "#4F5D95"
+                  }
                 }
               ]
             }
@@ -42,7 +51,7 @@
             "isFork": false,
             "visibility": "PUBLIC",
             "languages": {
-              "nodes": []
+              "edges": []
             }
           }
         ]

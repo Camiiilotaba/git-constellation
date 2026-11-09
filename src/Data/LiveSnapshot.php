@@ -11,7 +11,7 @@ use GitConstellation\Statistics\VisibleTotals;
 final readonly class LiveSnapshot
 {
     /**
-     * @param list<array{name: string, repositories: int, color: string}> $languages
+     * @param list<array{name: string, repositories: int|null, color: string}> $languages
      * @param list<string> $tokenScopes
      */
     public function __construct(
@@ -28,5 +28,6 @@ final readonly class LiveSnapshot
         public DateTimeImmutable $generatedAt,
         public int $rateLimitRemaining,
         public array $tokenScopes,
+        public string $languagesSource = 'ranking',
     ) {}
 }

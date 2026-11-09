@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 final class SummaryTest extends TestCase
 {
     /** @param list<array{name: string, repositories: int, color: string}> $languages @param list<string> $scopes */
-    private function snapshot(array $languages, array $scopes): LiveSnapshot
+    private function snapshot(array $languages, array $scopes, string $source = 'ranking'): LiveSnapshot
     {
         $calendar = ContributionCalendar::fromArray(
             ['start' => '2026-01-01', 'end' => '2026-01-05'],
@@ -43,6 +43,7 @@ final class SummaryTest extends TestCase
             new DateTimeImmutable('2026-11-06T12:00:00Z'),
             4987,
             $scopes,
+            $source,
         );
     }
 
@@ -73,6 +74,19 @@ final class SummaryTest extends TestCase
             . "Rate limit remaining: 4987\n";
 
         self::assertSame($expected, Summary::format($this->snapshot($languages, ['read:user']), $this->period()));
+    }
+
+    public function testManualLanguagesPrintNamesOnly(): void
+    {
+        $languages = [
+            ['name' => 'PHP', 'repositories' => null, 'color' => '#4F5D95'],
+            ['name' => 'TypeScript', 'repositories' => null, 'color' => '#3178c6'],
+        ];
+
+        self::assertStringContainsString(
+            "Top Languages (selected): PHP, TypeScript\n",
+            Summary::format($this->snapshot($languages, ['read:user'], 'manual'), $this->period()),
+        );
     }
 
     public function testNoLanguagesPrintsNone(): void

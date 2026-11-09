@@ -16,12 +16,16 @@ final readonly class Configuration
         public string $output,
         public string $cyan,
         public string $green,
+        /** @var list<string>|null Replaces the default exclusion list when set; an empty list disables exclusions. */
+        public ?array $excludeLanguages,
+        /** @var list<array{name: string, color: string|null}>|null The developer's own language list, 1 to 5 entries. */
+        public ?array $languages,
     ) {}
 
     /** @param array<string, mixed> $data */
     public static function fromArray(array $data, ?string $outputOverride = null, string $defaultOutput = 'dist/constellation.png'): self
     {
-        $unknown = array_diff(array_keys($data), ['username', 'name', 'role', 'stack', 'output', 'colors']);
+        $unknown = array_diff(array_keys($data), ['username', 'name', 'role', 'stack', 'output', 'colors', 'excludeLanguages', 'languages']);
         if ($unknown !== []) {
             throw new InvalidArgumentException('Unknown configuration field: ' . implode(', ', $unknown));
         }
@@ -53,7 +57,49 @@ final readonly class Configuration
             $output,
             self::color(array_key_exists('cyan', $colors) ? $colors['cyan'] : '#30e8ef', 'cyan'),
             self::color(array_key_exists('green', $colors) ? $colors['green'] : '#52f5a0', 'green'),
+            array_key_exists('excludeLanguages', $data) ? self::excludeLanguages($data['excludeLanguages']) : null,
+            array_key_exists('languages', $data) ? self::languages($data['languages']) : null,
         );
+    }
+
+    /** @return list<string> */
+    private static function excludeLanguages(mixed $value): array
+    {
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new InvalidArgumentException('excludeLanguages must be a list of language names.');
+        }
+
+        return array_map(static fn (mixed $name): string => self::text($name, 'excludeLanguages entries', 80), $value);
+    }
+
+    /** @return list<array{name: string, color: string|null}> */
+    private static function languages(mixed $value): array
+    {
+        if (!is_array($value) || !array_is_list($value) || $value === [] || count($value) > 5) {
+            throw new InvalidArgumentException('languages must be a list of 1 to 5 entries.');
+        }
+        $languages = [];
+        $seen = [];
+        foreach ($value as $entry) {
+            if (is_string($entry)) {
+                $entry = ['name' => $entry];
+            }
+            if (!is_array($entry) || array_is_list($entry) || array_diff(array_keys($entry), ['name', 'color']) !== []) {
+                throw new InvalidArgumentException('languages entries must be a name or an object with name and optional color.');
+            }
+            $name = self::text($entry['name'] ?? null, 'languages name', 80);
+            if (isset($seen[mb_strtolower($name)])) {
+                throw new InvalidArgumentException("languages must not contain duplicate names: {$name}");
+            }
+            $seen[mb_strtolower($name)] = true;
+            $color = array_key_exists('color', $entry) ? $entry['color'] : null;
+            if ($color !== null && (!is_string($color) || !preg_match('/^#[0-9a-fA-F]{6}$/D', $color))) {
+                throw new InvalidArgumentException('languages color must be a six-digit hex color, such as #3178c6.');
+            }
+            $languages[] = ['name' => $name, 'color' => $color === null ? null : strtolower($color)];
+        }
+
+        return $languages;
     }
 
     private static function text(mixed $value, string $field, int $maxLength): string

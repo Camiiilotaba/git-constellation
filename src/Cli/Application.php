@@ -18,6 +18,7 @@ use GitConstellation\GitHub\GraphQlClient;
 use GitConstellation\GitHub\LiveStatistics;
 use GitConstellation\GitHub\RepositoriesQuery;
 use GitConstellation\Render\NodeExporter;
+use GitConstellation\Statistics\LanguageRanking;
 use GitConstellation\Support\JsonFile;
 use InvalidArgumentException;
 use RuntimeException;
@@ -79,7 +80,11 @@ HELP);
                 $this->assertNotDemoImage($output);
                 $secret = $this->prepareLive($config, $now, $input);
             } else {
-                $fixture = DemoFixture::fromArray(JsonFile::read($this->path($options->fixture)));
+                $fixture = DemoFixture::fromArray(
+                    JsonFile::read($this->path($options->fixture)),
+                    $config->excludeLanguages ?? LanguageRanking::DEFAULT_EXCLUDED,
+                    $config->languages,
+                );
                 JsonFile::write($input, RendererData::fromDemo($config, $fixture, $now));
                 fwrite(STDOUT, "DEMO — simulated statistics only. Prepared {$input}\n");
             }
@@ -103,7 +108,13 @@ HELP);
 
         // Nothing is written until the whole fetch succeeded, so a failed run never leaves a half-valid build/data.json.
         try {
-            $snapshot = $statistics->collect($config->username, $period, $now);
+            $snapshot = $statistics->collect(
+                $config->username,
+                $period,
+                $now,
+                $config->excludeLanguages ?? LanguageRanking::DEFAULT_EXCLUDED,
+                $config->languages,
+            );
         } catch (GitHubApiException $exception) {
             if ($exception->kind !== GitHubErrorKind::Auth) {
                 throw $exception;
