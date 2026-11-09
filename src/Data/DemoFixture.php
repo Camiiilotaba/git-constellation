@@ -10,16 +10,21 @@ use InvalidArgumentException;
 
 final readonly class DemoFixture
 {
-    /** @param list<array{name: string, repositories: int, color: string}> $languages */
+    /** @param list<array{name: string, repositories: int|null, color: string}> $languages */
     private function __construct(
         public ContributionCalendar $calendar,
         public ?int $pullRequests,
         public ?int $codeReviews,
         public array $languages,
+        public string $languagesSource,
     ) {}
 
-    /** @param array<string, mixed> $data */
-    public static function fromArray(array $data): self
+    /**
+     * @param array<string, mixed> $data
+     * @param list<string> $excludedLanguages
+     * @param list<array{name: string, color: string|null}>|null $manualLanguages
+     */
+    public static function fromArray(array $data, array $excludedLanguages = LanguageRanking::DEFAULT_EXCLUDED, ?array $manualLanguages = null): self
     {
         if (!is_array($data['period'] ?? null) || !is_array($data['days'] ?? null)
             || !is_array($data['repositories'] ?? null)) {
@@ -36,7 +41,10 @@ final readonly class DemoFixture
             ContributionCalendar::fromArray($data['period'], $data['days']),
             self::optionalMetric($data['pullRequests'] ?? null, 'pullRequests'),
             self::optionalMetric($data['codeReviews'] ?? null, 'codeReviews'),
-            LanguageRanking::calculate($data['repositories']),
+            $manualLanguages === null
+                ? LanguageRanking::calculate($data['repositories'], $excludedLanguages)
+                : LanguageRanking::manual($manualLanguages, $data['repositories']),
+            $manualLanguages === null ? 'ranking' : 'manual',
         );
     }
 

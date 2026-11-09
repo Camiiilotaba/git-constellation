@@ -5,7 +5,7 @@ import { exportImage, preparePage } from '../../renderer/export.js';
 import { loadAssets, renderHtml } from '../../renderer/template.js';
 import { CHART } from '../../renderer/transform.js';
 import type { ConstellationData } from '../../renderer/types.js';
-import { demoData, recalculate } from '../ts/fixtures.js';
+import { allTimeData, demoData, liveData, manualLanguages, recalculate } from '../ts/fixtures.js';
 
 async function render(page: Page, data: ConstellationData): Promise<void> {
   await preparePage(page, renderHtml(data, await loadAssets()));
@@ -26,6 +26,15 @@ async function assertNoMetricOverflow(page: Page): Promise<void> {
   }
 }
 
+test('live mode renders without the demo badge', async ({ page }) => {
+  await render(page, liveData());
+  await expect(page.locator('main')).toHaveScreenshot('live.png');
+  await expect(page.locator('.demo')).toHaveCount(0);
+  await expect(page.locator('.tagline')).toHaveCount(0);
+  await expect(page.locator('.privacy')).toHaveText('Nov 2025 – Oct 2026');
+  await assertNoMetricOverflow(page);
+});
+
 test('demo matches the panoramic screenshot baseline entirely offline', async ({ page }) => {
   const requests: string[] = [];
   const errors: string[] = [];
@@ -34,7 +43,7 @@ test('demo matches the panoramic screenshot baseline entirely offline', async ({
   await render(page, demoData());
   await expect(page.locator('main')).toHaveScreenshot('demo.png');
   await expect(page.locator('.demo')).toHaveText('DEMO / SIMULATED DATA');
-  await expect(page.locator('.privacy')).toContainText('Nov 2025 – Oct 2026');
+  await expect(page.locator('.privacy')).toHaveText('Nov 2025 – Oct 2026');
   await expect(page.locator('.weekly-star')).toHaveCount(53);
   await expect(page.locator('.decorative-mesh')).toHaveAttribute('aria-hidden', 'true');
   await expect(page.locator('.decorative-branch')).toHaveCount(3);
@@ -44,28 +53,53 @@ test('demo matches the panoramic screenshot baseline entirely offline', async ({
   await assertNoMetricOverflow(page);
 });
 
-for (const width of [960, 830]) test(`exported PNG fits a ${width}px GitHub README width`, async ({ page }) => {
+test('live mode with a manually selected language list', async ({ page }) => {
+  await render(page, liveData({ languagesSource: 'manual', languages: manualLanguages() }));
+  await expect(page.locator('.language-criterion')).toHaveCount(0);
+  await expect(page.locator('.languages')).toHaveAttribute('aria-label', 'Languages selected by the developer');
+  await expect(page.locator('.language-name')).toHaveText(['TypeScript', 'PHP', 'Rust']);
+  await expect(page.locator('main')).toHaveScreenshot('live-manual-languages.png');
+});
+
+test('all-time live mode draws one star per complete month with year labels', async ({ page }) => {
+  await render(page, allTimeData());
+  await expect(page.locator('.privacy')).toHaveText('Since Oct 2023');
+  await expect(page.locator('.monthly-star')).toHaveCount(37);
+  await expect(page.locator('.month-labels text')).toHaveText(['2024', '2025', '2026']);
+  await expect(page.locator('.demo')).toHaveCount(0);
+  await assertNoMetricOverflow(page);
+  await expect(page.locator('main')).toHaveScreenshot('all-time.png');
+});
+
+const readmeCases = [
+  { mode: 'demo', width: 960, data: demoData, snapshot: 'readme-960.png' },
+  { mode: 'demo', width: 830, data: demoData, snapshot: 'readme-830.png' },
+  { mode: 'live', width: 830, data: liveData, snapshot: 'live-readme-830.png' },
+  { mode: 'all-time', width: 830, data: allTimeData, snapshot: 'all-time-readme-830.png' },
+] as const;
+
+for (const { mode, width, data, snapshot } of readmeCases) test(`exported ${mode} PNG fits a ${width}px GitHub README width`, async ({ page }) => {
   // Embed the actual exported PNG in a fresh page, rather than reflowing HTML.
   const directory = resolve('build/visual-preview');
   await mkdir(directory, { recursive: true });
-  const input = resolve(directory, 'demo.json');
-  const output = resolve(directory, 'constellation.png');
+  const input = resolve(directory, `${mode}.json`);
+  const output = resolve(directory, mode === 'demo' ? 'constellation.png' : `${mode}.png`);
   const { writeFile } = await import('node:fs/promises');
-  await writeFile(input, JSON.stringify(demoData()));
+  await writeFile(input, JSON.stringify(data()));
   await exportImage({ input, output, html: false });
   const encoded = (await readFile(output)).toString('base64');
   const height = width * 840 / 1920;
   await page.setViewportSize({ width, height: Math.ceil(height) });
   await page.context().setOffline(true);
-  await page.setContent(`<style>html,body{margin:0;background:#020a10}img{display:block;width:${width}px;height:auto}</style><img src="data:image/png;base64,${encoded}" alt="Demo Git Constellation"/>`);
+  await page.setContent(`<style>html,body{margin:0;background:#020a10}img{display:block;width:${width}px;height:auto}</style><img src="data:image/png;base64,${encoded}" alt="${mode} Git Constellation"/>`);
   await page.locator('img').evaluate(async node => { await (node as HTMLImageElement).decode(); });
   const bounds = await page.locator('img').boundingBox();
   expect(bounds!.width).toBe(width);
   expect(bounds!.height).toBeCloseTo(height, 1);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   expect(overflow).toBe(false);
-  await expect(page.locator('img')).toHaveScreenshot(`readme-${width}.png`);
-  await page.locator('img').screenshot({ path: resolve(directory, `readme-${width}.png`) });
+  await expect(page.locator('img')).toHaveScreenshot(snapshot);
+  await page.locator('img').screenshot({ path: resolve(directory, snapshot) });
 });
 
 test('zero activity, unavailable metrics and empty language ranking', async ({ page }) => {

@@ -4,37 +4,108 @@ declare(strict_types=1);
 
 namespace GitConstellation\Data;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use GitConstellation\Config\Configuration;
 use GitConstellation\Statistics\ContributionMetrics;
 
 final class RendererData
 {
-    /** @return array<string, mixed> Exact schemaVersion 1 handoff to the TypeScript renderer. */
-    public static function fromDemo(Configuration $config, DemoFixture $fixture): array
+    /** @return array<string, mixed> Exact schemaVersion 3 handoff to the TypeScript renderer. */
+    public static function fromDemo(Configuration $config, DemoFixture $fixture, DateTimeImmutable $generatedAt): array
     {
-        $metrics = ContributionMetrics::calculate($fixture->calendar);
+        return self::assemble(
+            mode: 'demo',
+            generatedAt: $generatedAt,
+            username: $config->username,
+            config: $config,
+            calendar: $fixture->calendar,
+            periodKind: 'last-year',
+            pullRequests: $fixture->pullRequests,
+            codeReviews: $fixture->codeReviews,
+            languages: $fixture->languages,
+            languagesSource: $fixture->languagesSource,
+            privateContributions: 'excluded',
+            source: null,
+        );
+    }
+
+    /** @return array<string, mixed> Exact schemaVersion 3 handoff to the TypeScript renderer. */
+    public static function fromLive(Configuration $config, LiveSnapshot $snapshot): array
+    {
+        return self::assemble(
+            mode: 'live',
+            generatedAt: $snapshot->generatedAt,
+            username: $snapshot->login,
+            config: $config,
+            calendar: $snapshot->calendar,
+            periodKind: $snapshot->period,
+            pullRequests: $snapshot->pullRequests,
+            codeReviews: $snapshot->codeReviews,
+            languages: $snapshot->languages,
+            languagesSource: $snapshot->languagesSource,
+            privateContributions: $snapshot->privateContributions->value,
+            source: [
+                'provider' => 'github',
+                'login' => $snapshot->login,
+                'restrictedContributions' => $snapshot->restrictedContributions,
+                'ownAccount' => $snapshot->ownAccount,
+                'visibleTotals' => $snapshot->visibleTotals->toArray(),
+                'repositoriesScanned' => $snapshot->repositoriesScanned,
+            ],
+        );
+    }
+
+    /**
+     * @param list<array{name: string, repositories: int|null, color: string}> $languages
+     * @param array<string, mixed>|null $source
+     * @return array<string, mixed>
+     */
+    private static function assemble(
+        string $mode,
+        DateTimeImmutable $generatedAt,
+        string $username,
+        Configuration $config,
+        ContributionCalendar $calendar,
+        string $periodKind,
+        int $pullRequests,
+        int $codeReviews,
+        array $languages,
+        string $languagesSource,
+        string $privateContributions,
+        ?array $source,
+    ): array {
+        $metrics = ContributionMetrics::calculate($calendar);
 
         return [
-            'schemaVersion' => 1,
-            'mode' => 'demo',
+            'schemaVersion' => 3,
+            'mode' => $mode,
+            'generatedAt' => $generatedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'profile' => [
-                'username' => $config->username,
+                'username' => $username,
                 'name' => $config->name,
                 'role' => $config->role,
                 'stack' => $config->stack,
             ],
             'theme' => ['cyan' => $config->cyan, 'green' => $config->green],
-            'period' => ['start' => $fixture->calendar->start, 'end' => $fixture->calendar->end],
-            'days' => $fixture->calendar->days,
+            'period' => [
+                'start' => $calendar->start,
+                'end' => $calendar->end,
+                'kind' => $periodKind,
+                'granularity' => $periodKind === 'all-time' ? 'month' : 'week',
+            ],
+            'days' => $calendar->days,
             'metrics' => [
                 'totalContributions' => $metrics->totalContributions,
                 'activeDays' => $metrics->activeDays,
                 'longestStreak' => $metrics->longestStreak,
-                'pullRequests' => $fixture->pullRequests,
-                'codeReviews' => $fixture->codeReviews,
+                'pullRequests' => $pullRequests,
+                'codeReviews' => $codeReviews,
             ],
-            'languages' => $fixture->languages,
-            'privateContributionsIncluded' => false,
+            'languages' => $languages,
+            'languagesSource' => $languagesSource,
+            'privateContributions' => $privateContributions,
+            'source' => $source,
         ];
     }
 }

@@ -1,18 +1,22 @@
-# Offline renderer — Phase 1
+# Offline renderer
 
-The PHP command prepares the validated data contract in `build/data.json`.
-This renderer consumes that contract without making GitHub or other network
-requests. It supports **demo mode only** and rejects claims of private data.
+The PHP command prepares the validated data contract in `build/data.json`
+(`schemaVersion` 3; see `../docs/phase-2.md`). This renderer consumes that
+contract without making GitHub or other network requests. It renders both
+modes: `demo` (simulated data) and `live` (statistics fetched by PHP). It
+rejects data that makes inconsistent claims, such as a demo with a source or a
+live file without one.
 
 ```sh
 npm ci
 npx playwright install chromium
 npm run build
-php bin/constellation --demo
+php bin/constellation --demo   # dist/constellation.png
+php bin/constellation --live   # dist/live.png, needs GITHUB_TOKEN; see ../README.md
 ```
 
-The normal output is `dist/constellation.png` (1920 × 840) and a self-contained
-sibling `dist/constellation.html`. The HTML includes the fitted text sizes, local
+The normal output is a 1920 × 840 PNG (`dist/constellation.png` for demo,
+`dist/live.png` for live) and a self-contained sibling HTML file. The HTML includes the fitted text sizes, local
 font, stylesheet and SVG background. It can be inspected offline.
 
 The renderer can also be called directly after PHP prepares the JSON:
@@ -25,10 +29,45 @@ Add `--no-html` to suppress the inspection HTML. PNG output is written through a
 temporary file and renamed after successful rendering. Chromium closes on both
 success and failure. Output does not contain source JSON or environment values.
 
+## Contract v3 and mode-dependent copy
+
+`validation.ts` requires `schemaVersion` 3, `mode` of `demo` or `live` and a
+`privateContributions` state of `included`, `excluded` or `unknown`. Demo data
+must report `excluded` with a null `source`; live data must carry a `source`
+object (provider, login, restricted count, visible totals, repositories
+scanned). `metrics.pullRequests` and `metrics.codeReviews` may be `null`.
+
+`period` carries `start`, `end`, `kind` (`all-time` or `last-year`) and
+`granularity` (`month` or `week`); `days` covers every date from `start` to
+`end`. The 366-day limit applies only to `week`; a `month` period may span any
+number of years. Demo data is always `last-year` / `week`; PHP emits `all-time`
+with `month`.
+
+The renderer never reads the token or any environment value; the PHP side also
+filters credential-like variables from this process's environment.
+
+| Element | Demo | Live |
+| --- | --- | --- |
+| Page title | `<name> · Git Constellation · Demo` | `<name> · Git Constellation` |
+| Brand badge | `DEMO / SIMULATED DATA` | none |
+| Contribution subtitle | compact period, calendar icon | `kind: last-year`: compact period; `kind: all-time`: `Since <Mon YYYY>` of `period.start`; calendar icon, the full dates stay in the `title` |
+| PR / review tooltip | `Simulated` | `Visible to the token; may exclude private activity` |
+| Empty chart text | `No contributions in this example period` | `No contributions in this period` |
+| Empty languages text | `No eligible public repositories in this example.` | `No eligible public repositories.` |
+| Accessible description | states it is a demonstration with simulated data | states live statistics, the generation time, one privacy sentence (`included`: Totals include private activity as anonymized counts. `excluded`: Totals cover public activity only. `unknown`: Totals cover activity visible to the token.) and that PR and review counts may exclude private activity |
+
+The language panel is rendered in the order of `languages` (PHP decides the order). It depends on `languagesSource`:
+
+| Element | `ranking` | `manual` |
+| --- | --- | --- |
+| Footnote | `By public repository count` | none |
+| Panel `aria-label` | `Languages ranked by public repository count` | `Languages selected by the developer` |
+| Item title | `<name>: <n> public repositories` | `<name>` |
+
 ## Responsibilities
 
 - `validation.ts`: schema, calendar continuity and agreement of calendar metrics.
-- `transform.ts`: UTC weekly aggregation, chart coordinates and interpolation.
+- `transform.ts`: UTC weekly or monthly aggregation, chart coordinates, axis labels and interpolation.
 - `ornaments.ts`: isolated peak accents and bounded decorative branches, separate from measured coordinates.
 - `template.ts`: escaped HTML/SVG composition and bundled asset loading.
 - `icons.ts`: original small outline SVG icons.
@@ -75,6 +114,19 @@ meaning. Zero activity generates neither branches nor peak flares.
 The decorative field, nebula, guide arcs, planet, rocks and developer are static
 artwork. They have no statistical meaning and never determine data positions.
 
+## Monthly constellation (`granularity: month`)
+
+Days are grouped by UTC calendar month with the same placement and scale rules
+as weeks: each star sits at the midpoint of its covered days, so a first month
+that starts mid-month is narrower. The month that contains `period.end` is the
+month in progress: its days count in every total, but it is not drawn, so the
+curve never ends in a false drop. When that would leave fewer than two months,
+it is drawn after all. Year labels replace month labels: one at each January
+star; a partial first year (range not starting in January) has none; with no
+January in range, the first month carries its year. Flares are at least 100
+pixels apart instead of 150. Stars use `class="monthly-star"` and `data-month`,
+and the series `data-series="monthly"`.
+
 ## Typography and bounds
 
 Manrope is bundled under the SIL Open Font License; see
@@ -97,7 +149,7 @@ npm run test:visual
 
 `npm test` builds the command before running unit and CLI error tests. Visual
 tests render entirely offline and cover the normal fixture, missing metrics,
-zero activity, long text, huge counts, uniformly high weeks and an early peak.
+zero activity, long text, huge counts, uniformly high weeks, an early peak and the all-time monthly view (1920 px and README 830 px).
 The README tests embed the actual exported PNG at 960 and 830 pixels wide;
 inspection copies are `build/visual-preview/readme-960.png` and
 `build/visual-preview/readme-830.png`. Bounds checks supplement visual inspection;

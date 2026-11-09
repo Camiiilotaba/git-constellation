@@ -62,6 +62,44 @@ final readonly class ContributionCalendar
         return new self($start->format('Y-m-d'), $end->format('Y-m-d'), array_values($normalized));
     }
 
+    /**
+     * Joins contiguous calendars, such as one per year, into one calendar that may exceed 366 days.
+     *
+     * @param list<self> $calendars
+     */
+    public static function concatenate(array $calendars): self
+    {
+        if ($calendars === []) {
+            throw new InvalidArgumentException('At least one calendar is required.');
+        }
+        $days = [];
+        $previous = null;
+        foreach ($calendars as $calendar) {
+            if ($previous !== null && self::date($previous->end)->modify('+1 day')->format('Y-m-d') !== $calendar->start) {
+                throw new InvalidArgumentException("Calendars are not contiguous: {$previous->end} is not followed by {$calendar->start}.");
+            }
+            array_push($days, ...$calendar->days);
+            $previous = $calendar;
+        }
+
+        return new self($calendars[0]->start, $previous->end, $days);
+    }
+
+    /** Starts at the first day with activity; without any activity only the last day remains. */
+    public function fromFirstContribution(): self
+    {
+        $first = count($this->days) - 1;
+        foreach ($this->days as $index => $day) {
+            if ($day['count'] > 0) {
+                $first = $index;
+                break;
+            }
+        }
+        $days = array_slice($this->days, $first);
+
+        return new self($days[0]['date'], $this->end, $days);
+    }
+
     private static function date(mixed $value): DateTimeImmutable
     {
         if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value)) {

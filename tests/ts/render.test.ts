@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets, renderHtml, type RenderAssets } from '../../renderer/template.js';
-import { demoData, shortData } from './fixtures.js';
-import { smoothPath, weeklyPoints } from '../../renderer/transform.js';
+import { allTimeData, demoData, liveData, manualLanguages, recalculate, shortData } from './fixtures.js';
+import { monthlyPoints, smoothPath, weeklyPoints } from '../../renderer/transform.js';
 
 let assets: RenderAssets;
 beforeAll(async () => { assets = await loadAssets(); });
@@ -21,8 +21,6 @@ describe('HTML composition', () => {
     expect(html).toContain('data:image/svg+xml;base64,');
     expect(html).toContain('data:font/ttf;base64,');
     expect(html).toContain('DEMO / SIMULATED DATA');
-    expect(html).toContain('public activity only');
-    expect(html).not.toContain('private counts anonymized');
   });
 
   it('distinguishes unavailable metrics from zero and handles empty languages', () => {
@@ -36,7 +34,7 @@ describe('HTML composition', () => {
     expect(html).toContain('No contributions in this example period');
   });
 
-  it('orders public repository counts with a deterministic name tie-break', () => {
+  it('renders ranked languages in the given order without re-sorting', () => {
     const data = shortData();
     data.languages = [
       { name: 'Zeta', repositories: 2, color: '#abcdef' },
@@ -44,9 +42,28 @@ describe('HTML composition', () => {
       { name: 'Alpha', repositories: 2, color: '#abcdef' },
     ];
     const html = renderHtml(data, assets);
+    expect(html.indexOf('>Zeta</span>')).toBeLessThan(html.indexOf('>Beta</span>'));
     expect(html.indexOf('>Beta</span>')).toBeLessThan(html.indexOf('>Alpha</span>'));
-    expect(html.indexOf('>Alpha</span>')).toBeLessThan(html.indexOf('>Zeta</span>'));
-    expect(data.languages[0]!.name).toBe('Zeta');
+  });
+
+  it('keeps a manual language list in the given order without a footnote, with its own titles', () => {
+    const data = liveData({ languagesSource: 'manual', languages: manualLanguages() });
+    const html = renderHtml(data, assets);
+    expect(html.indexOf('>TypeScript</span>')).toBeLessThan(html.indexOf('>PHP</span>'));
+    expect(html.indexOf('>PHP</span>')).toBeLessThan(html.indexOf('>Rust</span>'));
+    expect(html).not.toContain('<p class="language-criterion"');
+    expect(html).not.toContain('Selected by the developer');
+    expect(html).toContain('aria-label="Languages selected by the developer"');
+    expect(html).toContain('<li title="TypeScript">');
+    expect(html).not.toContain('By public repository count');
+    expect(html).not.toContain('public repositories"');
+    expect(html).not.toContain('Language ranking counts eligible public repositories');
+  });
+
+  it('keeps the ranking footnote and aria-label in ranking mode', () => {
+    const html = renderHtml(demoData(), assets);
+    expect(html).toContain('<p class="language-criterion">By public repository count</p>');
+    expect(html).toContain('aria-label="Languages ranked by public repository count"');
   });
 
   it('clearly distinguishes decorative branches from the measured data series', () => {
@@ -63,5 +80,97 @@ describe('HTML composition', () => {
     expect(html.match(/class="data-star"/g)).toHaveLength(points.length);
     expect(html).toContain('Normalized square-root scale');
     expect(html).toContain('Faint dashed branches are decorative.');
+  });
+
+  it('omits the demo badge and the tagline in live mode', () => {
+    const html = renderHtml(liveData(), assets);
+    expect(html).not.toContain('DEMO / SIMULATED DATA');
+    expect(html).not.toContain('ACTIVITY <b>•</b> CODE');
+    expect(html).toContain('· Git Constellation</title>');
+  });
+
+  it('keeps the demo badge in demo mode but drops the tagline', () => {
+    const html = renderHtml(demoData(), assets);
+    expect(html).toContain('DEMO / SIMULATED DATA');
+    expect(html).not.toContain('class="tagline"');
+  });
+
+  const privacyText = (html: string): string => /<div class="privacy"[^>]*>(.*?)<\/div>/s.exec(html)![1]!.replace(/<[^>]+>/g, '').trim();
+  const OLD_PHRASES = ['private counts anonymized', 'public activity only', 'visible activity only'];
+
+  it('shows only the compact period in the subtitle in demo and live', () => {
+    for (const html of [renderHtml(demoData(), assets), renderHtml(liveData(), assets)]) {
+      expect(privacyText(html)).toBe('Nov 2025 – Oct 2026');
+      for (const phrase of OLD_PHRASES) {
+        expect(html).not.toContain(phrase);
+      }
+    }
+  });
+
+  it('shows Since <first month> and a monthly series with year labels for all-time data', () => {
+    const data = allTimeData();
+    const html = renderHtml(data, assets);
+    expect(privacyText(html)).toBe('Since Oct 2023');
+    expect(html).toContain('title="Oct 23, 2023 – Nov 9, 2026"');
+    const points = monthlyPoints(data.days);
+    expect(html).toContain(`data-series="monthly" d="${smoothPath(points)}"`);
+    expect(html.match(/class="monthly-star"/g)).toHaveLength(37);
+    expect(html).not.toContain('class="weekly-star"');
+    expect(html).toContain('data-month="2023-10-23"');
+    expect(html).toContain('aria-label="Monthly contributions. Normalized square-root scale');
+    expect(html).toContain('contributions per month.');
+    const labels = [...html.matchAll(/<text x="[\d.]+" y="526">([^<]+)<\/text>/g)].map(match => match[1]);
+    expect(labels).toEqual(['2024', '2025', '2026']);
+    expect(html).toContain(`<strong>${new Intl.NumberFormat('en-US').format(data.metrics.totalContributions)}</strong>`);
+  });
+
+  it('renders zero all-time activity without a crash or invented points', () => {
+    const data = allTimeData();
+    data.period.start = data.period.end;
+    data.days = [{ date: data.period.end, count: 0 }];
+    recalculate(data);
+    const html = renderHtml(data, assets);
+    expect(html).toContain('No contributions in this period');
+    expect(html.match(/class="monthly-star"/g)).toHaveLength(1);
+    expect(privacyText(html)).toBe('No contributions yet');
+    expect(html).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('states the privacy situation in the screen-reader paragraph per state', () => {
+    const sentences = {
+      included: 'Totals include private activity as anonymized counts.',
+      excluded: 'Totals cover public activity only.',
+      unknown: 'Totals cover activity visible to the token.',
+    } as const;
+    for (const [state, sentence] of Object.entries(sentences)) {
+      const html = renderHtml(liveData({ privateContributions: state as keyof typeof sentences }), assets);
+      expect(/<p class="sr-only">(.*?)<\/p>/s.exec(html)![1]).toContain(sentence);
+    }
+  });
+
+  it('removes card secondary descriptions and keeps Not available for null', () => {
+    const html = renderHtml(demoData(), assets);
+    for (const text of ['Created · simulated', 'Submitted · simulated', 'In the example period', 'Consecutive active days']) {
+      expect(html).not.toContain(text);
+    }
+    const nulls = renderHtml(liveData({ metrics: { ...liveData().metrics, pullRequests: null } }), assets);
+    expect(nulls).toContain('<small data-fit data-min-size="15">Not available</small>');
+  });
+
+  it('labels PR and review cards as token-visible in live mode', () => {
+    expect(renderHtml(liveData(), assets)).toContain('title="Visible to the token; may exclude private activity"');
+  });
+
+  it('uses live copy for labels, empty states and the screen-reader paragraph', () => {
+    const data = liveData({ languages: [], privateContributions: 'excluded' });
+    data.days.forEach(day => { day.count = 0; });
+    recalculate(data);
+    const html = renderHtml(data, assets);
+    expect(html).toContain('aria-label="GitHub contributions"');
+    expect(html).toContain('GitHub contribution constellation"');
+    expect(html).not.toContain('simulated');
+    expect(html).toContain('No contributions in this period');
+    expect(html).toContain('No eligible public<br/>repositories.</p>');
+    expect(html).toContain(`Live GitHub statistics for ${data.profile.username}, generated ${data.generatedAt}. 0 contributions; 0 active days.`);
   });
 });

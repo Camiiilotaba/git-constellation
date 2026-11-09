@@ -1,0 +1,9 @@
+{
+    "username": "your-github-login",
+    "name": "Your Name",
+    "role": "Your Role",
+    "stack": "Your / Stack",
+    "output": "dist/live.png",
+    "period": "all-time",
+    "colors": { "cyan": "#30e8ef", "green": "#52f5a0" }
+}

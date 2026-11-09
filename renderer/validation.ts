@@ -2,6 +2,9 @@ import type { ConstellationData } from './types.js';
 
 export const DAY_MS = 86_400_000;
 const HEX_COLOR = /^#[\da-f]{6}$/i;
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const PRIVATE_STATES = ['included', 'excluded', 'unknown'];
+const LOGIN_LIMIT = 39;
 
 export function parseDate(value: unknown, label = 'date'): number {
   if (typeof value !== 'string' || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -39,11 +42,27 @@ function color(value: unknown, label: string): asserts value is string {
   }
 }
 
-/** Validate the offline rendering boundary, including calendar continuity. */
+function validateSource(input: unknown): void {
+  const source = object(input, 'source');
+  if (source.provider !== 'github') throw new Error("source.provider must be 'github'.");
+  text(source.login, 'source.login', LOGIN_LIMIT);
+  integer(source.restrictedContributions, 'source.restrictedContributions');
+  if (typeof source.ownAccount !== 'boolean') throw new Error('source.ownAccount must be a boolean.');
+  integer(source.repositoriesScanned, 'source.repositoriesScanned');
+  const totals = object(source.visibleTotals, 'source.visibleTotals');
+  for (const key of ['commits', 'issues', 'pullRequests', 'reviews', 'repositories']) {
+    integer(totals[key], `source.visibleTotals.${key}`);
+  }
+}
+
+/** Validate the rendering boundary, including calendar continuity. */
 export function validateData(input: unknown): ConstellationData {
   const root = object(input, 'data');
-  if (root.schemaVersion !== 1) throw new Error('Unsupported schemaVersion; expected 1.');
-  if (root.mode !== 'demo') throw new Error('Phase 1 only supports demo mode.');
+  if (root.schemaVersion !== 3) throw new Error('Unsupported schemaVersion; expected 3.');
+  if (root.mode !== 'demo' && root.mode !== 'live') throw new Error("mode must be 'demo' or 'live'.");
+  if (typeof root.generatedAt !== 'string' || !ISO_UTC.test(root.generatedAt) || !Number.isFinite(Date.parse(root.generatedAt))) {
+    throw new Error('generatedAt must be an ISO 8601 UTC timestamp.');
+  }
   const profile = object(root.profile, 'profile');
   for (const key of ['username', 'name', 'role', 'stack']) text(profile[key], `profile.${key}`);
   const theme = object(root.theme, 'theme');
@@ -52,8 +71,16 @@ export function validateData(input: unknown): ConstellationData {
   const period = object(root.period, 'period');
   const start = parseDate(period.start, 'period.start');
   const end = parseDate(period.end, 'period.end');
+  if (period.kind !== 'all-time' && period.kind !== 'last-year') throw new Error("period.kind must be 'all-time' or 'last-year'.");
+  if (period.granularity !== 'month' && period.granularity !== 'week') throw new Error("period.granularity must be 'month' or 'week'.");
+  if ((period.kind === 'all-time') !== (period.granularity === 'month')) {
+    throw new Error("period.kind and period.granularity must match: 'all-time' with 'month', 'last-year' with 'week'.");
+  }
   const expectedDays = (end - start) / DAY_MS + 1;
-  if (expectedDays < 1 || expectedDays > 366) throw new Error('period must contain between 1 and 366 days.');
+  const weekly = period.granularity === 'week';
+  if (expectedDays < 1 || (weekly && expectedDays > 366)) {
+    throw new Error(weekly ? 'period must contain between 1 and 366 days.' : 'period must contain at least one day.');
+  }
   if (!Array.isArray(root.days) || root.days.length !== expectedDays) {
     throw new Error('days must cover every day of period, inclusively.');
   }
@@ -79,18 +106,32 @@ export function validateData(input: unknown): ConstellationData {
   if (metrics.totalContributions !== total || metrics.activeDays !== active || metrics.longestStreak !== longest) {
     throw new Error('Calendar metrics must agree with the supplied daily contributions.');
   }
+  if (root.languagesSource !== 'ranking' && root.languagesSource !== 'manual') throw new Error("languagesSource must be 'ranking' or 'manual'.");
+  const manual = root.languagesSource === 'manual';
   if (!Array.isArray(root.languages) || root.languages.length > 5) throw new Error('languages must contain at most five entries.');
+  if (manual && root.languages.length === 0) throw new Error('A manual language list must contain 1 to 5 entries.');
   const names = new Set<string>();
   for (const [index, entry] of root.languages.entries()) {
     const language = object(entry, `languages[${index}]`);
     text(language.name, `languages[${index}].name`, 80);
     if (names.has(language.name.toLowerCase())) throw new Error('languages must not contain duplicates.');
     names.add(language.name.toLowerCase());
-    integer(language.repositories, `languages[${index}].repositories`);
-    if (language.repositories === 0) throw new Error('A ranked language must appear in at least one repository.');
+    if (manual) {
+      if (language.repositories !== null) throw new Error(`languages[${index}].repositories must be null for a manual list.`);
+    } else {
+      integer(language.repositories, `languages[${index}].repositories`);
+      if (language.repositories === 0) throw new Error('A ranked language must appear in at least one repository.');
+    }
     color(language.color, `languages[${index}].color`);
   }
-  if (typeof root.privateContributionsIncluded !== 'boolean') throw new Error('privateContributionsIncluded must be boolean.');
-  if (root.privateContributionsIncluded) throw new Error('Demo data must not claim private contributions.');
+  if (!PRIVATE_STATES.includes(root.privateContributions as string)) {
+    throw new Error('privateContributions must be included, excluded or unknown.');
+  }
+  if (root.mode === 'demo') {
+    if (root.privateContributions !== 'excluded') throw new Error('Demo data must report privateContributions as excluded.');
+    if (root.source !== null) throw new Error('Demo data must have a null source.');
+  } else {
+    validateSource(root.source);
+  }
   return root as unknown as ConstellationData;
 }

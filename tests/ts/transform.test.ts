@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CHART, monthTicks, smoothPath, weeklyPoints } from '../../renderer/transform.js';
-import { shortData } from './fixtures.js';
+import { CHART, monthlyPoints, monthTicks, smoothPath, weeklyPoints, yearTicks } from '../../renderer/transform.js';
+import type { ContributionDay } from '../../renderer/types.js';
+import { allTimeData, shortData } from './fixtures.js';
 
 describe('weekly contribution coordinates', () => {
   it('uses UTC Monday weeks including both partial edge weeks', () => {
@@ -90,5 +91,70 @@ describe('smooth curve and month axis', () => {
     expect(ticks.map(tick => tick.label)).toEqual(['NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT']);
     expect(ticks[0]!.x).toBeCloseTo(CHART.left + 15 / 365 * (CHART.right - CHART.left));
     expect(monthTicks('2026-03-20', '2026-03-20')[0]!.x).toBe((CHART.left + CHART.right) / 2);
+  });
+});
+
+function range(start: string, end: string, count: (date: string) => number = () => 1): ContributionDay[] {
+  const days: ContributionDay[] = [];
+  for (let time = Date.parse(`${start}T00:00:00Z`); time <= Date.parse(`${end}T00:00:00Z`); time += 86_400_000) {
+    const date = new Date(time).toISOString().slice(0, 10);
+    days.push({ date, count: count(date) });
+  }
+  return days;
+}
+
+describe('monthly contribution coordinates', () => {
+  it('buckets by UTC calendar month and leaves out the month in progress', () => {
+    const points = monthlyPoints(range('2023-10-23', '2024-01-09'), { left: 0, right: 100, top: 0, bottom: 100 });
+    expect(points.map(p => [p.start, p.end, p.count])).toEqual([
+      ['2023-10-23', '2023-10-31', 9],
+      ['2023-11-01', '2023-11-30', 30],
+      ['2023-12-01', '2023-12-31', 31],
+    ]);
+    expect(points[0]!.x).toBeCloseTo(4.5 / 70 * 100);
+    expect(points[2]!.x).toBeCloseTo(54.5 / 70 * 100);
+    expect(points[2]!.y).toBe(0);
+  });
+
+  it('keeps the month in progress when fewer than two months would remain', () => {
+    expect(monthlyPoints(range('2026-10-05', '2026-11-09')).map(p => p.start)).toEqual(['2026-10-05', '2026-11-01']);
+    expect(monthlyPoints(range('2026-11-02', '2026-11-09')).map(p => p.start)).toEqual(['2026-11-02']);
+    expect(monthlyPoints([{ date: '2026-11-09', count: 0 }])).toHaveLength(1);
+    expect(monthlyPoints([])).toEqual([]);
+  });
+
+  it('draws one star per complete month from the first contribution month', () => {
+    const data = allTimeData();
+    const points = monthlyPoints(data.days);
+    expect(points).toHaveLength(37);
+    expect(points[0]!.start).toBe('2023-10-23');
+    expect(points.at(-1)!.start).toBe('2026-10-01');
+    const drawn = points.reduce((sum, point) => sum + point.count, 0);
+    const inProgress = data.days.filter(day => day.date >= '2026-11-01').reduce((sum, day) => sum + day.count, 0);
+    expect(drawn + inProgress).toBe(data.metrics.totalContributions);
+  });
+
+  it('handles a leap February', () => {
+    const points = monthlyPoints(range('2024-01-01', '2024-04-02'));
+    expect(points.map(p => p.count)).toEqual([31, 29, 31]);
+  });
+});
+
+describe('year labels', () => {
+  it('labels each January and skips a partial first year', () => {
+    const points = monthlyPoints(allTimeData().days);
+    const ticks = yearTicks(points);
+    expect(ticks.map(tick => tick.label)).toEqual(['2024', '2025', '2026']);
+    expect(ticks[0]!.x).toBe(points.find(point => point.start === '2024-01-01')!.x);
+  });
+
+  it('labels a first year that starts in January', () => {
+    expect(yearTicks(monthlyPoints(range('2024-01-15', '2025-03-01'))).map(tick => tick.label)).toEqual(['2024', '2025']);
+  });
+
+  it('labels the first month with its year when no January is in range', () => {
+    const points = monthlyPoints(range('2025-03-10', '2025-11-09'));
+    expect(yearTicks(points)).toEqual([{ x: points[0]!.x, label: '2025' }]);
+    expect(yearTicks([])).toEqual([]);
   });
 });
