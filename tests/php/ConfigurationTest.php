@@ -41,6 +41,13 @@ final class ConfigurationTest extends TestCase
         ], $config->languages);
     }
 
+    public function testPeriodDefaultsToAllTimeAndAcceptsLastYear(): void
+    {
+        self::assertSame('all-time', Configuration::fromArray(self::BASE)->period);
+        self::assertSame('last-year', Configuration::fromArray(self::BASE + ['period' => 'last-year'])->period);
+        self::assertSame('all-time', Configuration::fromArray(self::BASE + ['period' => 'all-time'])->period);
+    }
+
     public function testDefaultOutputFollowsTheModeDefault(): void
     {
         self::assertSame('dist/live.png', Configuration::fromArray(self::BASE, null, 'dist/live.png')->output);
@@ -88,6 +95,9 @@ final class ConfigurationTest extends TestCase
         yield 'languages bad color' => [['languages' => [['name' => 'PHP', 'color' => 'red']]], 'color'];
         yield 'languages unknown key' => [['languages' => [['name' => 'PHP', 'size' => 1]]], 'languages'];
         yield 'languages long name' => [['languages' => [str_repeat('a', 81)]], 'languages'];
+        yield 'period calendar year' => [['period' => 'calendar-year'], 'period'];
+        yield 'period wrong type' => [['period' => 365], 'period'];
+        yield 'period null' => [['period' => null], 'period'];
         yield 'unknown config field' => [['githubToken' => 'example-not-a-real-token'], 'Unknown configuration field'];
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GitConstellation\Statistics;
 
 use GitConstellation\Support\IntegerRange;
+use InvalidArgumentException;
 
 enum PrivateContributions: string
 {
@@ -29,5 +30,22 @@ enum PrivateContributions: string
         }
 
         return $calendarTotal === $visible->sum() ? self::Excluded : self::Unknown;
+    }
+
+    /**
+     * Included when any part gives an explicit signal; excluded only when every part is exact.
+     *
+     * @param list<self> $parts
+     */
+    public static function combine(array $parts): self
+    {
+        if ($parts === []) {
+            throw new InvalidArgumentException('At least one private contributions state is required.');
+        }
+        if (in_array(self::Included, $parts, true)) {
+            return self::Included;
+        }
+
+        return in_array(self::Unknown, $parts, true) ? self::Unknown : self::Excluded;
     }
 }

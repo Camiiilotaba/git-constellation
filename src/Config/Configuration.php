@@ -8,6 +8,8 @@ use InvalidArgumentException;
 
 final readonly class Configuration
 {
+    public const array PERIODS = ['all-time', 'last-year'];
+
     private function __construct(
         public string $username,
         public string $name,
@@ -20,12 +22,15 @@ final readonly class Configuration
         public ?array $excludeLanguages,
         /** @var list<array{name: string, color: string|null}>|null The developer's own language list, 1 to 5 entries. */
         public ?array $languages,
+        /** Live mode only: 'all-time' (default) or 'last-year'. Demo always renders its fixture year. */
+        public string $period,
     ) {}
+
 
     /** @param array<string, mixed> $data */
     public static function fromArray(array $data, ?string $outputOverride = null, string $defaultOutput = 'dist/constellation.png'): self
     {
-        $unknown = array_diff(array_keys($data), ['username', 'name', 'role', 'stack', 'output', 'colors', 'excludeLanguages', 'languages']);
+        $unknown = array_diff(array_keys($data), ['username', 'name', 'role', 'stack', 'output', 'colors', 'excludeLanguages', 'languages', 'period']);
         if ($unknown !== []) {
             throw new InvalidArgumentException('Unknown configuration field: ' . implode(', ', $unknown));
         }
@@ -49,6 +54,11 @@ final readonly class Configuration
             throw new InvalidArgumentException('output must be a non-empty PNG file path without control characters.');
         }
 
+        $period = array_key_exists('period', $data) ? $data['period'] : 'all-time';
+        if (!in_array($period, self::PERIODS, true)) {
+            throw new InvalidArgumentException('period must be "all-time" or "last-year".');
+        }
+
         return new self(
             $username,
             self::text($data['name'] ?? null, 'name', 100),
@@ -59,6 +69,7 @@ final readonly class Configuration
             self::color(array_key_exists('green', $colors) ? $colors['green'] : '#52f5a0', 'green'),
             array_key_exists('excludeLanguages', $data) ? self::excludeLanguages($data['excludeLanguages']) : null,
             array_key_exists('languages', $data) ? self::languages($data['languages']) : null,
+            $period,
         );
     }
 

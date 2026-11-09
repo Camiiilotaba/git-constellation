@@ -48,4 +48,24 @@ final class PeriodTest extends TestCase
         self::assertFalse($period->contains('2025-11-06'));
         self::assertFalse($period->contains('2026-11-07'));
     }
+
+    public function testBetweenKeepsExplicitDates(): void
+    {
+        $period = Period::between('2024-01-01', '2024-12-31');
+        self::assertSame(366, $period->dayCount());
+        self::assertSame('2024-01-01T00:00:00Z', $period->fromDateTime());
+        self::assertSame('2024-12-31T23:59:59Z', $period->toDateTime());
+    }
+
+    public function testBetweenRejectsInvalidRanges(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Period::between('2024-12-31', '2024-01-01');
+    }
+
+    public function testBetweenRejectsInvalidDates(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Period::between('2024-02-30', '2024-03-01');
+    }
 }

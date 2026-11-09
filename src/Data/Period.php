@@ -7,6 +7,7 @@ namespace GitConstellation\Data;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 
 /** An inclusive range of UTC calendar days. */
 final readonly class Period
@@ -24,6 +25,21 @@ final readonly class Period
         $start = $end->sub(new DateInterval('P1Y'))->add(new DateInterval('P1D'));
 
         return new self($start->format('Y-m-d'), $end->format('Y-m-d'));
+    }
+
+    public static function between(string $start, string $end): self
+    {
+        foreach ([$start, $end] as $date) {
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date, new DateTimeZone('UTC'));
+            if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+                throw new InvalidArgumentException("Invalid period date: {$date}");
+            }
+        }
+        if ($end < $start) {
+            throw new InvalidArgumentException('The period end must be on or after its start.');
+        }
+
+        return new self($start, $end);
     }
 
     public function fromDateTime(): string

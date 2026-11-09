@@ -19,6 +19,27 @@ final class PrivateContributionsTest extends TestCase
         self::assertSame($expected, PrivateContributions::determine($calendarTotal, new VisibleTotals(...$visible), $restricted, $hasAny, $ownAccount));
     }
 
+    /** @param list<PrivateContributions> $years */
+    #[DataProvider('combinations')]
+    public function testCombineAcrossYears(array $years, PrivateContributions $expected): void
+    {
+        self::assertSame($expected, PrivateContributions::combine($years));
+    }
+
+    public static function combinations(): iterable
+    {
+        yield 'any included wins' => [[PrivateContributions::Excluded, PrivateContributions::Included, PrivateContributions::Unknown], PrivateContributions::Included];
+        yield 'every year exact' => [[PrivateContributions::Excluded, PrivateContributions::Excluded], PrivateContributions::Excluded];
+        yield 'one inexact year' => [[PrivateContributions::Excluded, PrivateContributions::Unknown], PrivateContributions::Unknown];
+        yield 'single year' => [[PrivateContributions::Unknown], PrivateContributions::Unknown];
+    }
+
+    public function testCombineRejectsAnEmptyList(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        PrivateContributions::combine([]);
+    }
+
     public static function cases(): iterable
     {
         yield 'restricted count' => [120, [50, 10, 20, 15, 5], 20, true, false, PrivateContributions::Included];
