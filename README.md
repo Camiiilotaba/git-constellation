@@ -85,11 +85,11 @@ Demo data has a fixed period so the image is reproducible. It needs no token and
 }
 ```
 
-The keys are `username`, `name`, `role`, `stack`, `output` and `colors.cyan` / `colors.green`. Live mode uses the same keys, with `username` set to a real GitHub login.
+The keys are `username`, `name`, `role`, `stack`, `output` and `colors.cyan` / `colors.green`. Live mode uses the same keys, with `username` set to a real GitHub login, plus the optional `period` (see [Period](#period)); demo mode ignores `period`.
 
 ## Live mode (Advanced Setup)
 
-Live mode fetches real statistics for one GitHub user over a rolling one-year period and renders them with the same renderer. It runs locally. It needs a token and network access to `api.github.com`.
+Live mode fetches real statistics for one GitHub user and renders them with the same renderer. By default it shows the user's whole history, from the first contribution to today (see [Period](#period)). It runs locally. It needs a token and network access to `api.github.com`.
 
 1. **Create a token.** On GitHub, go to Settings, Developer settings, Personal access tokens, Tokens (classic). Create a classic token with **only** the `read:user` scope. Do not grant `repo`: it is not needed, and a token that reports it is rejected. Fine-grained tokens work with caveats; see Known limitations below.
 2. **Store the token.** Either export it for the session, or copy `.env.example` to `.env` and set it there. `.env` is gitignored.
@@ -104,7 +104,7 @@ Live mode fetches real statistics for one GitHub user over a rolling one-year pe
 
    ```sh
    cp config/live.example.json config/local.json
-   # edit config/local.json: username, name, role, stack, colors
+   # edit config/local.json: username, name, role, stack, colors, period
    ```
 4. **Run it.**
 
@@ -120,7 +120,7 @@ Before rendering, the command prints a summary of what was fetched:
 
 ```text
 LIVE — GitHub statistics for <login>
-Period (UTC): <start> .. <end>
+Period (UTC): [all-time, ]<start> .. <end>
 Generated at: <UTC timestamp>
 Contributions (calendar): <n>
 Private contributions: <included|excluded|unknown> (restricted count: <n>, own account: yes|no)
@@ -135,7 +135,20 @@ Token scopes: <scopes reported by GitHub>
 Rate limit remaining: <n>
 ```
 
-The period ends today in UTC and starts one year earlier plus one day: 365 days, or 366 when it ends after February 29 and starts before it (a period ending on February 29 itself has 365). Check `Token scopes` to confirm the token has only `read:user`. [docs/phase-2.md](docs/phase-2.md) explains how to verify the numbers against GitHub.
+In all-time mode the period starts on the first contribution day; in last-year mode it is the rolling year described below. Check `Token scopes` to confirm the token has only `read:user`. [docs/phase-2.md](docs/phase-2.md) explains how to verify the numbers against GitHub.
+
+### Period
+
+The optional `period` key in the configuration chooses what the live image covers:
+
+| `period` | Covers | Subtitle | Constellation |
+| --- | --- | --- | --- |
+| `"all-time"` (default) | Everything since the first contribution day, up to today (UTC) | `Since Oct 2023` (month of the first contribution) | One star per month, with a year label at each January |
+| `"last-year"` | A rolling year ending today in UTC: 365 days, or 366 when it ends after February 29 and starts before it (a period ending on February 29 itself has 365) | Start and end month, such as `Nov 2025 – Nov 2026` | One star per week, with month labels |
+
+Any other value is a configuration error. The big total and all four cards (Pull Requests, Code Reviews, Active Days, Longest Streak) cover the chosen period; in all-time mode the longest streak runs across year boundaries. The current month counts in every total but is not drawn as a star until it is complete, so the curve never shows a false drop (unless fewer than two months would remain). The demo always shows its fixed fixture year.
+
+GitHub returns at most about one year of contributions per query, so all-time mode asks for the list of contribution years (one query) and then makes one query per calendar year from the first contribution year to the current one. A history that starts in 2023 costs five contribution queries in 2026, plus the repository pages; last-year mode costs one. Any failed year fails the whole run.
 
 ### Scenarios
 
@@ -155,8 +168,8 @@ The image subtitle shows only the period. The privacy state is in `build/data.js
 
 | `Private contributions` | Meaning |
 | --- | --- |
-| `included` | Your own account, or GitHub reported restricted (private) contributions |
-| `excluded` | No restricted signal and the totals add up to the visible activity |
+| `included` | Your own account, or GitHub reported restricted (private) contributions (in any year, for all-time) |
+| `excluded` | No restricted signal and the totals add up to the visible activity (in every year, for all-time) |
 | `unknown` | Neither could be established; the figure is not claimed to be complete |
 
 ### Known limitations
@@ -201,7 +214,9 @@ Replace `OWNER` and `BRANCH` with the real values. The URL only works once the f
 
 ## How to read the visualization
 
-The TypeScript transform groups days into UTC weeks starting on Monday, including partial groups at both ends, and places each point at the temporal midpoint of its group. Intensity is `sqrt(weekly total / maximum weekly total of the period)`; if the whole period is zero, intensity is zero. The vertical coordinate uses that normalized intensity. The size and opacity of each star follow the raw weekly count relative to the maximum, and up to five separated local maxima are highlighted. The vertical scale is relative to the period and is not a measure of skill.
+In all-time mode the transform groups days into UTC calendar months instead of weeks and labels each January with its year (the first year has no label when it does not start in January; with no January in range, the first month carries its year). Everything else below applies to months in the same way.
+
+In last-year mode the TypeScript transform groups days into UTC weeks starting on Monday, including partial groups at both ends, and places each point at the temporal midpoint of its group. Intensity is `sqrt(weekly total / maximum weekly total of the period)`; if the whole period is zero, intensity is zero. The vertical coordinate uses that normalized intensity. The size and opacity of each star follow the raw weekly count relative to the maximum, and up to five separated local maxima are highlighted. The vertical scale is relative to the period and is not a measure of skill.
 
 The continuous curve passes through the measured weekly stars. The faint dashed secondary connections are decorative: they represent no extra contributions, carry no counts and do not alter the main series.
 
@@ -224,14 +239,14 @@ npm run test:visual             # Playwright
 
 The suite includes one real-API integration test, `tests/php/Integration/GitHubLiveTest.php`. It is skipped unless `GITHUB_TOKEN` and `GIT_CONSTELLATION_LOGIN` are set; run it alone with `./vendor/bin/phpunit --group integration`. It checks structure only (period length and bounds, a positive rate limit, a valid private state), never concrete numbers.
 
-The visual reference screenshots are in `tests/visual/constellation.spec.ts-snapshots/` and were captured on macOS with Chromium. They cover the PNG at README widths of 830 and 960 pixels, no activity, long text, uniform activity and an early peak. `npm run test:visual` compares against them without updating. On another operating system, generate platform-specific screenshots with `npm run test:visual:update` and review them explicitly; do not regenerate references as part of routine testing.
+The visual reference screenshots are in `tests/visual/constellation.spec.ts-snapshots/` and were captured on macOS with Chromium. They cover the PNG at README widths of 830 and 960 pixels, the all-time monthly view, no activity, long text, uniform activity and an early peak. `npm run test:visual` compares against them without updating. On another operating system, generate platform-specific screenshots with `npm run test:visual:update` and review them explicitly; do not regenerate references as part of routine testing.
 
 With the supplied reference at `build/review/reference.png`, `node build/renderer/review.js` regenerates the local comparison at `build/review/comparison.html` after an image has been produced. This review material is not part of the image assets and is not published.
 
 ## Phases
 
 - **Phase 1** (implemented, visual approval pending): project structure, demo configuration and fixture, HTML/SVG/CSS rendering, PNG export with Playwright, unit tests and visual tests. See [docs/phase-1.md](docs/phase-1.md).
-- **Phase 2** (implemented): live mode with the GitHub GraphQL API, a rolling one-year period, the private contributions state, the language ranking from public repositories, data contract v2 and an optional real-API integration test. See [docs/phase-2.md](docs/phase-2.md).
+- **Phase 2** (implemented): live mode with the GitHub GraphQL API, a rolling one-year period, the private contributions state, the language ranking from public repositories, data contract v2 and an optional real-API integration test. Later extended with the all-time period (the live default, data contract v3). See [docs/phase-2.md](docs/phase-2.md).
 - **Phase 3** (planned, not started): a reusable GitHub Actions workflow and automated publishing.
 
 ## Typography

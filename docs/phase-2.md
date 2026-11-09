@@ -2,19 +2,19 @@
 
 ## Goal
 
-Add a `--live` mode that fetches real statistics for one GitHub user over a rolling one-year period, using the GitHub GraphQL API and a read-only token, and renders them with the same offline renderer as the demo. Demo mode is unchanged and still needs no credentials.
+Add a `--live` mode that fetches real statistics for one GitHub user (all-time by default, or a rolling one-year period), using the GitHub GraphQL API and a read-only token, and renders them with the same offline renderer as the demo. Demo mode is unchanged and still needs no credentials.
 
 Phase 2 does not publish anything and does not add automation. Both are Phase 3 topics (see "Planned compatibility with Quick Start").
 
-## Data contract v2
+## Data contract v3
 
-PHP writes `build/data.json`; the TypeScript renderer validates and consumes it. `schemaVersion` is `2`. Demo output uses the same schema with `mode: "demo"`, `privateContributions: "excluded"` and `source: null`.
+PHP writes `build/data.json`; the TypeScript renderer validates and consumes it. `schemaVersion` is `3` (v3 added `period.kind` and `period.granularity` for the all-time period). Demo output uses the same schema with `mode: "demo"`, `privateContributions: "excluded"` and `source: null`.
 
 Live example (`days` is shortened here; the real array contains every day of the period, ordered and contiguous):
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "mode": "live",
   "generatedAt": "2026-11-06T12:00:00Z",
   "profile": {
@@ -24,7 +24,7 @@ Live example (`days` is shortened here; the real array contains every day of the
     "stack": "PHP / TypeScript"
   },
   "theme": { "cyan": "#30e8ef", "green": "#52f5a0" },
-  "period": { "start": "2025-11-07", "end": "2026-11-06" },
+  "period": { "start": "2025-11-07", "end": "2026-11-06", "kind": "last-year", "granularity": "week" },
   "days": [
     { "date": "2025-11-07", "count": 3 },
     { "date": "2025-11-08", "count": 0 }
@@ -63,7 +63,8 @@ The values are illustrative.
 Rules enforced by `renderer/validation.ts`:
 
 - `mode` is `demo` or `live`. Demo requires `privateContributions: "excluded"` and `source: null`. Live requires a `source` object.
-- `days` covers every date of `period` inclusively, ordered, without duplicates; the period has 1 to 366 days.
+- `period.kind` is `all-time` or `last-year`; `period.granularity` is `month` or `week`. Demo emits `last-year` / `week`; live emits `all-time` / `month` or `last-year` / `week`.
+- `days` covers every date of `period` inclusively, ordered, without duplicates; the period has at least one day, and at most 366 when the granularity is `week`.
 - `metrics.totalContributions`, `activeDays` and `longestStreak` must agree with `days`.
 - `metrics.pullRequests` and `metrics.codeReviews` are non-negative integers or `null`.
 - `languagesSource` is `ranking` or `manual`, right after `languages`. `languages` has at most five entries, no duplicates and a six-digit hex colour per entry. With `ranking`, every `repositories` is an integer of at least 1; with `manual` the list has 1 to 5 entries and every `repositories` is `null`.
@@ -181,7 +182,18 @@ Result (2026-11-06), verified against the owner's account with a classic `read:u
 - [x] Record which of the two sums `totalContributions` equals: the returned days, which are exactly the period (no padding).
 - [x] Record whether a 366-day span is accepted by `contributionsCollection`: yes (verified).
 
-## Rolling period
+## All-time period (default)
+
+With `"period": "all-time"` (the default; `"last-year"` selects the rolling period below, any other value is a configuration error), live mode covers everything from the first contribution day to today (UTC).
+
+- One query reads `contributionsCollection { contributionYears }` (`ContributionsQuery::YEARS_QUERY`). Then Query A runs once per calendar year, from the first contribution year to the current one, including years without contributions in between: `from` is `<year>-01-01T00:00:00Z`, `to` is `<year>-12-31T23:59:59Z`, or today `T23:59:59Z` for the current year. Each year goes through the same validation (calendar total, completeness, login, rate limit and error mapping). Any failed year fails the run.
+- The yearly calendars are joined (contiguous, no duplicates) and start at the first day with a count above 0. With no contributions at all, the period is today only, with a count of 0, and the image shows the zero-activity state.
+- Totals, pull requests, reviews, restricted counts and the visible totals are summed. Active days and the longest streak are computed on the joined calendar, so a streak continues across year boundaries.
+- Private state: each year is decided by the rule above with its own in-year sum; the result is `included` if any year is `included`, `excluded` only if every year is `excluded`, otherwise `unknown`.
+- The subtitle reads `Since <Mon YYYY>` (the month of the first contribution). The constellation shows one star per month up to the last complete month (the current month counts in the totals but is drawn only when fewer than two months would remain), with a year label at each January.
+- Rate-limit cost: one contribution query per year in that range plus the years query, instead of one.
+
+## Rolling period (`"period": "last-year"`)
 
 The period ends today in UTC and starts one year earlier plus one day. That is 365 days, or 366 when the period ends after February 29 and starts before it (a period ending on February 29 itself has 365 days, because `sub('P1Y')` on that date overflows to March 1). `Period::trailingYear` computes it from the current UTC date; `from` is the start at `00:00:00Z` and `to` is the end at `23:59:59Z`.
 
@@ -246,7 +258,7 @@ Run after `php bin/constellation --live --config=config/local.json`. Use the sam
 - More than 2000 eligible public repositories are rejected.
 - Fine-grained tokens work but report Pull Requests and Code Reviews as public only (see Permissions and token).
 - `privateContributions` can be `unknown`; the screen-reader text then says the totals cover activity visible to the token.
-- The period is a rolling UTC window and does not match the week-aligned profile figure.
+- In last-year mode the period is a rolling UTC window and does not match the week-aligned profile figure.
 - The visual baselines in `tests/visual` are macOS and Chromium only.
 - The calendar total can exceed the sum of the five visible totals by a small amount for unknown reasons (spike fact 5), which keeps `excluded` strict.
 
