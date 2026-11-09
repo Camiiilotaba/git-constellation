@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDate, validateData } from '../../renderer/validation.js';
-import { demoData, liveData, manualLanguages, shortData } from './fixtures.js';
+import { allTimeData, demoData, liveData, manualLanguages, shortData } from './fixtures.js';
 
 describe('offline data boundary', () => {
   it('accepts a complete fixture and nullable unavailable metrics', () => {
@@ -39,7 +39,7 @@ describe('offline data boundary', () => {
 
   it('accepts an inclusive leap-year calendar of 366 days', () => {
     const data = demoData();
-    data.period = { start: '2024-01-01', end: '2024-12-31' };
+    data.period = { start: '2024-01-01', end: '2024-12-31', kind: 'last-year', granularity: 'week' };
     data.days = Array.from({ length: 366 }, (_, i) => ({ date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), count: 0 }));
     Object.assign(data.metrics, { totalContributions: 0, activeDays: 0, longestStreak: 0 });
     expect(validateData(data).days).toHaveLength(366);
@@ -85,8 +85,26 @@ describe('offline data boundary', () => {
     expect(() => validateData(missing)).toThrow(/languagesSource/);
   });
 
-  it('accepts schema v2 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });
+  it('accepts schema v3 demo data', () => { expect(() => validateData(demoData())).not.toThrow(); });
   it('rejects schemaVersion 1', () => { expect(() => validateData({ ...demoData(), schemaVersion: 1 })).toThrow(/schemaVersion/); });
+  it('rejects schemaVersion 2', () => { expect(() => validateData({ ...demoData(), schemaVersion: 2 })).toThrow(/schemaVersion/); });
+
+  it('accepts an all-time monthly period longer than 366 days', () => {
+    expect(validateData(allTimeData()).days).toHaveLength(1114);
+  });
+
+  it('keeps the 366-day limit for weekly periods only', () => {
+    const data = allTimeData();
+    data.period.granularity = 'week';
+    expect(() => validateData(data)).toThrow(/366/);
+  });
+
+  it('rejects an unknown period kind or granularity', () => {
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, kind: 'calendar-year' as never } })).toThrow(/period.kind/);
+    expect(() => validateData({ ...demoData(), period: { ...demoData().period, granularity: 'day' as never } })).toThrow(/period.granularity/);
+    const { kind: _kind, ...withoutKind } = demoData().period;
+    expect(() => validateData({ ...demoData(), period: withoutKind as never })).toThrow(/period.kind/);
+  });
   it('requires a boolean source.ownAccount in live mode', () => {
     const source = liveData().source!;
     expect(() => validateData(liveData({ source: { ...source, ownAccount: 'yes' as unknown as boolean } }))).toThrow(/source.ownAccount/);

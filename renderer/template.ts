@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ConstellationData } from './types.js';
-import { CHART, monthTicks, smoothPath, weeklyPoints } from './transform.js';
+import { CHART, monthlyPoints, monthTicks, smoothPath, weeklyPoints, yearTicks } from './transform.js';
 import { validateData } from './validation.js';
 import { icon } from './icons.js';
 import { decorativeBranches, flareIndices } from './ornaments.js';
@@ -38,13 +38,16 @@ const TOKEN_VISIBLE_NOTE = 'Visible to the token; may exclude private activity';
 const coordinate = (value: number): string => value.toFixed(2);
 
 function constellation(data: ConstellationData): string {
-  const points = weeklyPoints(data.days);
+  const monthly = data.period.granularity === 'month';
+  const unit = monthly ? 'month' : 'week';
+  const points = monthly ? monthlyPoints(data.days) : weeklyPoints(data.days);
   const path = smoothPath(points);
   const peak = Math.max(0, ...points.map(point => point.count));
-  const flares = flareIndices(points);
+  // The 100 px monthly flare gap was approved visually against the all-time mockup.
+  const flares = flareIndices(points, monthly ? 100 : 150);
   const branches = decorativeBranches(points);
-  const ticks = monthTicks(data.period.start, data.period.end);
-  return `<svg class="constellation" viewBox="0 0 1920 840" role="img" aria-label="Weekly contributions. Normalized square-root scale, from zero to ${peak} contributions per week. Faint dashed branches are decorative.">
+  const ticks = monthly ? yearTicks(points) : monthTicks(data.period.start, data.period.end);
+  return `<svg class="constellation" viewBox="0 0 1920 840" role="img" aria-label="${monthly ? 'Monthly' : 'Weekly'} contributions. Normalized square-root scale, from zero to ${peak} contributions per ${unit}. Faint dashed branches are decorative.">
     <defs>
       <linearGradient id="lineColor"><stop stop-color="${data.theme.cyan}"/><stop offset=".45" stop-color="${data.theme.cyan}"/><stop offset=".64" stop-color="${data.theme.green}"/><stop offset=".8" stop-color="${data.theme.cyan}"/><stop offset="1" stop-color="${data.theme.green}"/></linearGradient>
       <filter id="lineGlow" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
@@ -54,12 +57,12 @@ function constellation(data: ConstellationData): string {
       ${branches.map(branch => `<g class="decorative-branch"><polyline points="${branch.vertices.map(vertex => `${coordinate(vertex.x)},${coordinate(vertex.y)}`).join(' ')}"/>${branch.vertices.slice(1, -1).map(vertex => `<circle cx="${coordinate(vertex.x)}" cy="${coordinate(vertex.y)}" r="1.7" fill="${data.theme.cyan}" stroke="none"/>`).join('')}</g>`).join('')}
     </g>
     <path d="${path}" fill="none" stroke="url(#lineColor)" stroke-width="4" opacity=".14" filter="url(#lineGlow)" aria-hidden="true"/>
-    <path data-series="weekly" d="${path}" fill="none" stroke="url(#lineColor)" stroke-width="1.15" opacity="${peak === 0 ? '.2' : '.6'}"/>
+    <path data-series="${monthly ? 'monthly' : 'weekly'}" d="${path}" fill="none" stroke="url(#lineColor)" stroke-width="1.15" opacity="${peak === 0 ? '.2' : '.6'}"/>
     ${points.map((point, index) => {
       const strength = peak === 0 ? 0 : point.count / peak;
       const color = strength >= .72 ? data.theme.green : data.theme.cyan;
       const bright = flares.has(index);
-      return `<g class="weekly-star" data-count="${point.count}" data-week="${point.start}" aria-label="${point.start} to ${point.end}: ${point.count} contributions">
+      return `<g class="${monthly ? 'monthly' : 'weekly'}-star" data-count="${point.count}" data-${unit}="${point.start}" aria-label="${point.start} to ${point.end}: ${point.count} contributions">
         <title>${point.start} – ${point.end}: ${point.count} contributions</title>
         ${point.count > 0 ? `<circle cx="${coordinate(point.x)}" cy="${coordinate(point.y)}" r="${coordinate(point.radius * (bright ? 3 : 1.8))}" fill="${color}" opacity="${coordinate(.1 + strength * (bright ? .39 : .24))}" filter="url(#starGlow)"/>` : ''}
         ${bright ? `<g class="star-flare" aria-hidden="true"><path d="M${coordinate(point.x - 17)} ${coordinate(point.y)}h34M${coordinate(point.x)} ${coordinate(point.y - 17)}v34" stroke="${color}" stroke-width=".8" opacity=".55"/><path d="M${coordinate(point.x - 6)} ${coordinate(point.y - 6)}l12 12M${coordinate(point.x + 6)} ${coordinate(point.y - 6)}l-12 12" stroke="${color}" stroke-width=".6" opacity=".3"/></g>` : ''}
@@ -88,7 +91,9 @@ export function renderHtml(input: ConstellationData, assets: RenderAssets): stri
   const formatDate = (value: string): string => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
   const period = `${formatDate(data.period.start)} – ${formatDate(data.period.end)}`;
   const formatMonth = (value: string): string => new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
-  const compactPeriod = formatMonth(data.period.start) === formatMonth(data.period.end) ? formatMonth(data.period.start) : `${formatMonth(data.period.start)} – ${formatMonth(data.period.end)}`;
+  const compactPeriod = data.period.kind === 'all-time'
+    ? `Since ${formatMonth(data.period.start)}`
+    : formatMonth(data.period.start) === formatMonth(data.period.end) ? formatMonth(data.period.start) : `${formatMonth(data.period.start)} – ${formatMonth(data.period.end)}`;
   const demo = data.mode === 'demo';
   const activityTitle = demo ? 'Simulated' : TOKEN_VISIBLE_NOTE;
   const manual = data.languagesSource === 'manual';

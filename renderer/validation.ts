@@ -58,7 +58,7 @@ function validateSource(input: unknown): void {
 /** Validate the rendering boundary, including calendar continuity. */
 export function validateData(input: unknown): ConstellationData {
   const root = object(input, 'data');
-  if (root.schemaVersion !== 2) throw new Error('Unsupported schemaVersion; expected 2.');
+  if (root.schemaVersion !== 3) throw new Error('Unsupported schemaVersion; expected 3.');
   if (root.mode !== 'demo' && root.mode !== 'live') throw new Error("mode must be 'demo' or 'live'.");
   if (typeof root.generatedAt !== 'string' || !ISO_UTC.test(root.generatedAt) || !Number.isFinite(Date.parse(root.generatedAt))) {
     throw new Error('generatedAt must be an ISO 8601 UTC timestamp.');
@@ -71,8 +71,13 @@ export function validateData(input: unknown): ConstellationData {
   const period = object(root.period, 'period');
   const start = parseDate(period.start, 'period.start');
   const end = parseDate(period.end, 'period.end');
+  if (period.kind !== 'all-time' && period.kind !== 'last-year') throw new Error("period.kind must be 'all-time' or 'last-year'.");
+  if (period.granularity !== 'month' && period.granularity !== 'week') throw new Error("period.granularity must be 'month' or 'week'.");
   const expectedDays = (end - start) / DAY_MS + 1;
-  if (expectedDays < 1 || expectedDays > 366) throw new Error('period must contain between 1 and 366 days.');
+  const weekly = period.granularity === 'week';
+  if (expectedDays < 1 || (weekly && expectedDays > 366)) {
+    throw new Error(weekly ? 'period must contain between 1 and 366 days.' : 'period must contain at least one day.');
+  }
   if (!Array.isArray(root.days) || root.days.length !== expectedDays) {
     throw new Error('days must cover every day of period, inclusively.');
   }

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadAssets, renderHtml, type RenderAssets } from '../../renderer/template.js';
-import { demoData, liveData, manualLanguages, recalculate, shortData } from './fixtures.js';
-import { smoothPath, weeklyPoints } from '../../renderer/transform.js';
+import { allTimeData, demoData, liveData, manualLanguages, recalculate, shortData } from './fixtures.js';
+import { monthlyPoints, smoothPath, weeklyPoints } from '../../renderer/transform.js';
 
 let assets: RenderAssets;
 beforeAll(async () => { assets = await loadAssets(); });
@@ -105,6 +105,34 @@ describe('HTML composition', () => {
         expect(html).not.toContain(phrase);
       }
     }
+  });
+
+  it('shows Since <first month> and a monthly series with year labels for all-time data', () => {
+    const data = allTimeData();
+    const html = renderHtml(data, assets);
+    expect(privacyText(html)).toBe('Since Oct 2023');
+    expect(html).toContain('title="Oct 23, 2023 – Nov 9, 2026"');
+    const points = monthlyPoints(data.days);
+    expect(html).toContain(`data-series="monthly" d="${smoothPath(points)}"`);
+    expect(html.match(/class="monthly-star"/g)).toHaveLength(37);
+    expect(html).not.toContain('class="weekly-star"');
+    expect(html).toContain('data-month="2023-10-23"');
+    expect(html).toContain('aria-label="Monthly contributions. Normalized square-root scale');
+    expect(html).toContain('contributions per month.');
+    const labels = [...html.matchAll(/<text x="[\d.]+" y="526">([^<]+)<\/text>/g)].map(match => match[1]);
+    expect(labels).toEqual(['2024', '2025', '2026']);
+    expect(html).toContain(`<strong>${new Intl.NumberFormat('en-US').format(data.metrics.totalContributions)}</strong>`);
+  });
+
+  it('renders zero all-time activity without a crash or invented points', () => {
+    const data = allTimeData();
+    data.period.start = data.period.end;
+    data.days = [{ date: data.period.end, count: 0 }];
+    recalculate(data);
+    const html = renderHtml(data, assets);
+    expect(html).toContain('No contributions in this period');
+    expect(html.match(/class="monthly-star"/g)).toHaveLength(1);
+    expect(html).not.toMatch(/NaN|Infinity/);
   });
 
   it('states the privacy situation in the screen-reader paragraph per state', () => {

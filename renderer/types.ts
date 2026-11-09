@@ -9,12 +9,12 @@ export interface ConstellationSource {
 }
 
 export interface ConstellationData {
-  schemaVersion: 2;
+  schemaVersion: 3;
   mode: 'demo' | 'live';
   generatedAt: string;
   profile: { username: string; name: string; role: string; stack: string };
   theme: { cyan: string; green: string };
-  period: { start: string; end: string };
+  period: { start: string; end: string; kind: 'all-time' | 'last-year'; granularity: 'month' | 'week' };
   days: ContributionDay[];
   metrics: {
     totalContributions: number;

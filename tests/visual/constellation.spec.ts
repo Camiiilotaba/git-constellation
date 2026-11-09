@@ -5,7 +5,7 @@ import { exportImage, preparePage } from '../../renderer/export.js';
 import { loadAssets, renderHtml } from '../../renderer/template.js';
 import { CHART } from '../../renderer/transform.js';
 import type { ConstellationData } from '../../renderer/types.js';
-import { demoData, liveData, manualLanguages, recalculate } from '../ts/fixtures.js';
+import { allTimeData, demoData, liveData, manualLanguages, recalculate } from '../ts/fixtures.js';
 
 async function render(page: Page, data: ConstellationData): Promise<void> {
   await preparePage(page, renderHtml(data, await loadAssets()));
@@ -61,10 +61,21 @@ test('live mode with a manually selected language list', async ({ page }) => {
   await expect(page.locator('main')).toHaveScreenshot('live-manual-languages.png');
 });
 
+test('all-time live mode draws one star per complete month with year labels', async ({ page }) => {
+  await render(page, allTimeData());
+  await expect(page.locator('.privacy')).toHaveText('Since Oct 2023');
+  await expect(page.locator('.monthly-star')).toHaveCount(37);
+  await expect(page.locator('.month-labels text')).toHaveText(['2024', '2025', '2026']);
+  await expect(page.locator('.demo')).toHaveCount(0);
+  await assertNoMetricOverflow(page);
+  await expect(page.locator('main')).toHaveScreenshot('all-time.png');
+});
+
 const readmeCases = [
   { mode: 'demo', width: 960, data: demoData, snapshot: 'readme-960.png' },
   { mode: 'demo', width: 830, data: demoData, snapshot: 'readme-830.png' },
   { mode: 'live', width: 830, data: liveData, snapshot: 'live-readme-830.png' },
+  { mode: 'all-time', width: 830, data: allTimeData, snapshot: 'all-time-readme-830.png' },
 ] as const;
 
 for (const { mode, width, data, snapshot } of readmeCases) test(`exported ${mode} PNG fits a ${width}px GitHub README width`, async ({ page }) => {
