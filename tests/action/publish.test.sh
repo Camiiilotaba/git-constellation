@@ -12,6 +12,14 @@ export GIT_CONFIG_GLOBAL=$tmp/gitconfig GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=Test GIT_COMMITTER_EMAIL=test@example.com
 touch "$GIT_CONFIG_GLOBAL"
 
+# Each run gets its own commit date. Two runs in the same second would recreate an earlier orphan commit byte for
+# byte, and Git refuses to push a commit that the shallow work clone only knows as a fetch boundary.
+clock=1700000000
+tick() {
+    clock=$((clock + 60))
+    export GIT_AUTHOR_DATE="@$clock +0000" GIT_COMMITTER_DATE="@$clock +0000"
+}
+
 failures=0
 check() {
     if [[ $2 == "$3" ]]; then
@@ -38,6 +46,7 @@ printf '<svg>first</svg>' > "$tmp/one.svg"
 printf '<svg>second</svg>' > "$tmp/two.svg"
 
 run() {
+    tick
     GC_REPO=$tmp/work GC_IMAGE=$1 GC_BRANCH=$2 GC_PATH=${3:-constellation.png} bash "$publish" >/dev/null
 }
 remote_git() {
@@ -75,6 +84,7 @@ run "$tmp/two.png" main images/constellation.png
 check 'default-branch mode commits a changed image' "$(remote_git rev-list --count main)" 3
 
 run_animated() {
+    tick
     GC_REPO=$tmp/work GC_IMAGE=$1 GC_ANIMATED=$2 GC_BRANCH=$3 GC_PATH=${4:-constellation.png} bash "$publish" >/dev/null
 }
 
@@ -155,6 +165,7 @@ for foreign in notes bare-orphan; do
     check "foreign branch $foreign is untouched" "$(remote_git rev-parse "$foreign")" "$before"
 done
 
+tick
 output=$(GC_TOKEN=secret-token-value GC_REPO=$tmp/work GC_IMAGE=$tmp/one.png bash "$publish" 2>&1)
 check 'publishes with a token supplied through the environment' "$(remote_git show constellation:constellation.png)" 'first image'
 encoded=$(printf 'x-access-token:secret-token-value' | base64)
