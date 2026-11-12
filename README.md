@@ -2,7 +2,7 @@
 
 Git Constellation turns a GitHub contribution calendar into a panoramic, constellation-inspired image that you can link from your profile README. A GitHub Action regenerates it on a schedule, so the image stays current without cloning or installing anything. It can also run locally, in a demo mode with fictional data or in a live mode with your own token.
 
-<img src="https://raw.githubusercontent.com/Camiiilotaba/Camiiilotaba/constellation/constellation.png" width="100%" alt="Git Constellation for Camiiilotaba">
+<img src="https://raw.githubusercontent.com/Camiiilotaba/Camiiilotaba/constellation/constellation.svg" width="100%" alt="Git Constellation for Camiiilotaba">
 
 This is the author's live profile image, regenerated every 6 hours by the action.
 

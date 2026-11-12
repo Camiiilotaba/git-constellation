@@ -46,8 +46,11 @@ The second `</>` mark beside the contribution count was removed, and the contrib
 
 `action.yml` passes `GC_ANIMATED` to `scripts/action/publish.sh`. The SVG is always published, to the `path` input with `.png` replaced by `.svg` (default `constellation.svg`); there is no new input. On the image branch the single commit holds the README marker, the PNG and the SVG, and nothing is pushed when both are unchanged. In default-branch mode a commit is made when either file changed. Without `GC_ANIMATED` the script behaves as in Phase 3.
 
+## Verified on GitHub (2026-11-12)
+
+The profile workflow run published `constellation.svg` (331,975 bytes) next to `constellation.png`. raw.githubusercontent.com serves it as `image/svg+xml` with `content-security-policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`. The profile README now links the SVG, and the image loads and animates on https://github.com/Camiiilotaba in Chromium, Firefox and WebKit (headless Playwright check: four consecutive screenshots of the image, all different, in each engine). The hero image of this README links the SVG.
+
 ## Not verified yet
 
-- **Rendering on GitHub itself.** raw.githubusercontent.com serves images with `content-security-policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`. With those headers reproduced locally, the embedded data image, CSS animation and SMIL worked in Chromium, Firefox and WebKit. Nothing has been published, so the real behaviour on a profile page is unconfirmed. The hero image of the README keeps the PNG URL until a real run confirms it.
 - `prefers-reduced-motion` from a real OS setting (see above).
 - CPU cost on other machines and on battery-powered devices.

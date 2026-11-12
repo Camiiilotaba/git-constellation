@@ -1,15 +1,16 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-12 (Phase 4, animated SVG, implemented on `feature/animated-svg`)
+Last updated: 2026-11-12 (Phases 3 and 4 verified with real runs; release pending)
 
 ## Current state
 
-- Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
+- Local repository: `/Users/eduardcherkashyn/develop/git-constellation`; public at https://github.com/Camiiilotaba/git-constellation. `develop` is pushed; `main` is still at the Phase 2 merge (5ba031b). No tags exist yet. CI (`.github/workflows/ci.yml`) installs Chromium for the export test and is green on `develop`.
 - Branching model (owner, 2026-11-09): `main` holds released states only; `develop` is the integration branch; work happens on `feature/*` branches merged into `develop` with `--no-ff`; `develop` is merged into `main` with `--no-ff` when a phase is approved.
 - Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
-- Phase 3 (GitHub Actions Quick Start) is implemented locally on `feature/phase-3-actions` and independently reviewed (fixes applied). It is pending a real-run spike, which needs the owner's explicit confirmation to publish this repository, create the first tags (`v1.0.0`, `v1`, `latest`; see `docs/releasing.md`) and add the workflow to `Camiiilotaba/Camiiilotaba`. Design and checklist: `docs/phase-3.md`.
-- Open questions for the spike: does `viewer { login }` return a bot login with the Actions `GITHUB_TOKEN` (null or an error fails the run); can that token read `contributionsCollection` and the repositories query, and does it send no `X-OAuth-Scopes`; are the pinned SHAs right (`actions/checkout` v4.2.2 `11bd7190…`, `actions/setup-node` v4.4.0 `49933ea5…`); which Node ubuntu-24.04 ships and how long a run takes; does the per-command extra-header push work with `persist-credentials: false` on a shallow checkout, including creating the branch; does `ls-remote --symref` resolve the default branch; do bot pushes to the non-default `constellation` branch count as activity for GitHub's 60-day scheduled-workflow rule.
-- Phase 4 (animated SVG) is implemented on `feature/animated-svg`, pending a real run on the profile: every run writes `<output>.svg` next to the PNG, and the action publishes both (`GC_ANIMATED` in `scripts/action/publish.sh`). The Quick Start README snippet uses `constellation.svg`; the hero image keeps the PNG URL until the animated file is confirmed on GitHub (raw.githubusercontent.com's CSP was only reproduced locally). Layout change in the static image too: the second `</>` mark beside the contribution count was removed and the contribution line aligns with the name. Design, measurements and open points: `docs/phase-4.md`.
+- Phase 3 (GitHub Actions Quick Start) is merged into `develop` and verified with real runs in `Camiiilotaba/Camiiilotaba` (first run 2026-11-09): checkout with `persist-credentials: false`, render, publish to the orphan `constellation` branch; scheduled runs every 6 hours succeeded 2026-11-10 to 2026-11-12, about 45 seconds each. The profile workflow references `@develop` until the release. Design and checklist: `docs/phase-3.md`.
+- Spike answers: with the automatic `GITHUB_TOKEN`, `viewer { login }` resolves and the token is not treated as the owner's account; `contributionsCollection` and the repositories query are readable; no `X-OAuth-Scopes`; private contributions `included` through the restricted count (1401, 2026-11-09); PRs and reviews count public activity only; calendar total 1495. With the classic `read:user` token stored as `CONSTELLATION_TOKEN` (used now): PRs and reviews include private activity (255 and 285, total 1534 on 2026-11-12); on 2026-11-09 the total was 1448 versus 1495 with the automatic token. The pinned SHAs, the per-command extra-header push (including creating the branch) and `ls-remote --symref` work. raw.githubusercontent.com caches a 404 for a few minutes if the image is requested before the branch exists.
+- Still open: whether bot pushes to the non-default `constellation` branch count as activity for GitHub's 60-day scheduled-workflow rule.
+- Phase 4 (animated SVG) is merged into `develop` and verified on GitHub (2026-11-12): the workflow published `constellation.svg` (331,975 bytes) next to the PNG, served as `image/svg+xml` with the restrictive CSP; the profile README links it and it animates in Chromium, Firefox and WebKit. The README hero image links the SVG. Not verified: whether a real OS reduced-motion setting reaches an SVG shown through `<img>` (an emulated one does not in Chromium); the at-rest invisibility is the guarantee. Layout change in the static image too: the second `</>` mark was removed. Details: `docs/phase-4.md`.
 - Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
 - Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
@@ -51,14 +52,15 @@ node build/renderer/review.js                  # comparison gallery in build/rev
 
 Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN=<login> ./vendor/bin/phpunit --group integration`.
 
-## Verification (2026-11-09)
+## Verification (2026-11-12)
 
-- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Phase 4 (2026-11-12): PHPUnit 225 (1 skipped), Vitest 97, action tests 47 checks, Playwright 12. Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- Local: Vitest 97, action checks 47, PHPUnit 225 (1 skipped: integration), Playwright 12. CI is green on `develop`.
+- Real runs: Phase 2 API run (2026-11-09) all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account). Phase 3 and 4 runs on the profile workflow as described under Current state.
 - Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
 ## Review artifacts
 
-- Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored, not generated yet).
+- Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored).
 - Visual baselines: `tests/visual/constellation.spec.ts-snapshots/`.
 - Comparison gallery and reference: `build/review/` (ignored; keep `build/review/reference.png` safe, it is the owner's reference and `build/` is ephemeral).
 - Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`, `docs/phase-3.md`, `docs/phase-4.md`.
@@ -66,4 +68,4 @@ Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN
 ## How to resume in a new session
 
 1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline --graph -15`.
-2. Continue Phase 4 on `feature/animated-svg`, then the Phase 3 spike (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.
+2. Next step: the release. Merge `develop` into `main` with `--no-ff`, then create the tags `v1.0.0`, `v1` and `latest` per `docs/releasing.md`, and switch the profile workflow in `Camiiilotaba/Camiiilotaba` from `@develop` to `@v1`. Ask before any push, tag, publish, or change to `Camiiilotaba/Camiiilotaba`.
