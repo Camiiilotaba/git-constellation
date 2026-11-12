@@ -34,6 +34,8 @@ git clone --quiet --depth=1 "file://$remote" "$tmp/work"
 printf 'first image' > "$tmp/one.png"
 printf 'second image' > "$tmp/two.png"
 main_before=$(git -C "$remote" rev-parse main)
+printf '<svg>first</svg>' > "$tmp/one.svg"
+printf '<svg>second</svg>' > "$tmp/two.svg"
 
 run() {
     GC_REPO=$tmp/work GC_IMAGE=$1 GC_BRANCH=$2 GC_PATH=${3:-constellation.png} bash "$publish" >/dev/null
@@ -71,6 +73,47 @@ check 'default-branch mode no-ops when unchanged' "$(remote_git rev-parse main)"
 
 run "$tmp/two.png" main images/constellation.png
 check 'default-branch mode commits a changed image' "$(remote_git rev-list --count main)" 3
+
+run_animated() {
+    GC_REPO=$tmp/work GC_IMAGE=$1 GC_ANIMATED=$2 GC_BRANCH=$3 GC_PATH=${4:-constellation.png} bash "$publish" >/dev/null
+}
+
+check 'without GC_ANIMATED the branch holds no SVG' "$(remote_git ls-tree --name-only constellation | grep -c '\.svg$' || true)" 0
+
+run_animated "$tmp/one.png" "$tmp/one.svg" constellation
+animated_first=$(remote_git rev-parse constellation)
+check 'animated orphan branch holds PNG, SVG and README' "$(remote_git ls-tree --name-only constellation | tr '\n' ' ')" 'README.md constellation.png constellation.svg '
+check 'animated orphan branch still has one commit' "$(remote_git rev-list --count constellation)" 1
+check 'animated orphan branch holds the SVG' "$(remote_git show constellation:constellation.svg)" '<svg>first</svg>'
+
+run_animated "$tmp/one.png" "$tmp/one.svg" constellation
+check 'orphan mode no-ops when the pair is unchanged' "$(remote_git rev-parse constellation)" "$animated_first"
+
+run_animated "$tmp/one.png" "$tmp/two.svg" constellation
+check 'orphan mode publishes when only the SVG changed' "$(remote_git show constellation:constellation.svg)" '<svg>second</svg>'
+check 'orphan mode keeps the PNG when only the SVG changed' "$(remote_git show constellation:constellation.png)" 'first image'
+check 'orphan mode keeps one commit after an SVG-only change' "$(remote_git rev-list --count constellation)" 1
+
+run_animated "$tmp/one.png" "$tmp/one.svg" main images/constellation.png
+check 'default-branch mode commits both files' "$(remote_git show main:images/constellation.svg)" '<svg>first</svg>'
+check 'default-branch mode keeps the PNG next to the SVG' "$(remote_git show main:images/constellation.png)" 'first image'
+check 'default-branch mode adds one commit for the pair' "$(remote_git rev-list --count main)" 4
+after_animated=$(remote_git rev-parse main)
+
+run_animated "$tmp/one.png" "$tmp/one.svg" main images/constellation.png
+check 'default-branch mode skips when both files are unchanged' "$(remote_git rev-parse main)" "$after_animated"
+
+run_animated "$tmp/one.png" "$tmp/two.svg" main images/constellation.png
+check 'default-branch mode commits an SVG-only change' "$(remote_git rev-list --count main)" 5
+
+before_missing=$(remote_git rev-parse constellation)
+if missing_error=$(GC_REPO=$tmp/work GC_IMAGE=$tmp/one.png GC_ANIMATED=$tmp/missing.svg bash "$publish" 2>&1 >/dev/null); then
+    check 'fails when the animation is missing' published failed
+else
+    check 'fails when the animation is missing' failed failed
+fi
+check 'missing animation error names the file' "$missing_error" "Error: Rendered animation not found: $tmp/missing.svg."
+check 'missing animation leaves the branch untouched' "$(remote_git rev-parse constellation)" "$before_missing"
 
 for bad in ../escape.png /abs.png .git/x.png image.jpg; do
     if run "$tmp/one.png" constellation "$bad" 2>/dev/null; then
