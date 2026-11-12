@@ -1,6 +1,6 @@
 # Git Constellation
 
-Git Constellation turns a GitHub contribution calendar into a panoramic, constellation-inspired PNG that you can link from your profile README. A GitHub Action regenerates it on a schedule, so the image stays current without cloning or installing anything. It can also run locally, in a demo mode with fictional data or in a live mode with your own token.
+Git Constellation turns a GitHub contribution calendar into a panoramic, constellation-inspired image that you can link from your profile README. A GitHub Action regenerates it on a schedule, so the image stays current without cloning or installing anything. It can also run locally, in a demo mode with fictional data or in a live mode with your own token.
 
 <img src="https://raw.githubusercontent.com/Camiiilotaba/Camiiilotaba/constellation/constellation.png" width="100%" alt="Git Constellation for Camiiilotaba">
 
@@ -18,7 +18,7 @@ It runs in your profile repository (`<login>/<login>`).
    <img src="https://raw.githubusercontent.com/<login>/<login>/constellation/constellation.svg" width="100%" alt="GitHub contribution constellation for <login>">
    ```
 
-   The animated SVG is about 300 KB. Use `constellation.png` in the same place for a static image. The SVG contains a `prefers-reduced-motion` rule that turns the animation off, and it is built so that a viewer that does not animate it shows the plain image. See [docs/phase-4.md](docs/phase-4.md).
+   The animated SVG is about 300 KB. Use `constellation.png` in the same place for a static image. A viewer that does not animate the SVG shows the plain image, because every animated element is invisible at rest. The SVG also carries a `prefers-reduced-motion` rule, which has not been confirmed to apply through `<img>` in every browser. See [docs/phase-4.md](docs/phase-4.md).
 
 The runner must provide PHP 8.3 or later and Composer; the example uses `ubuntu-24.04`. Node.js is set up automatically when the runner's version is too old.
 
@@ -92,7 +92,7 @@ Run the generator on your own machine, for the demo image or for live statistics
 ├── bin/                   # PHP CLI
 ├── build/                 # Compiled TypeScript and render data (generated)
 ├── config/                # demo.json and live.example.json
-├── dist/                  # Generated PNG files
+├── dist/                  # Generated images
 ├── docs/                  # Phase documentation and release procedure
 ├── examples/              # Profile workflow to copy (Quick Start)
 ├── fixtures/              # Fictional calendar and metadata for demo mode
@@ -119,7 +119,7 @@ Run the generator on your own machine, for the demo image or for live statistics
 
 Composer installs Symfony HttpClient and Symfony Dotenv (used only by live mode) and PHPUnit (development). Demo mode makes no HTTP calls.
 
-The npm development dependencies are TypeScript (compiles the ESM modules), `@playwright/test` (the rendering browser and the visual tests) and Vitest (transform tests). `@types/node` only supplies types to the compiler and is not part of the runtime. Playwright uses Chromium to export the PNG.
+The npm development dependencies are TypeScript (compiles the ESM modules), `@playwright/test` (the rendering browser and the visual tests) and Vitest (transform tests). `@types/node` only supplies types to the compiler and is not part of the runtime. Playwright uses Chromium to export the images.
 
 ### Install and generate the demo
 

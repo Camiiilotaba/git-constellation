@@ -53,7 +53,7 @@ Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN
 
 ## Verification (2026-11-09)
 
-- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Phase 4 (2026-11-12): PHPUnit 224 (1 skipped), Vitest 96, action tests 43 checks, Playwright 12. Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Phase 4 (2026-11-12): PHPUnit 225 (1 skipped), Vitest 97, action tests 47 checks, Playwright 12. Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
 - Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
 ## Review artifacts
