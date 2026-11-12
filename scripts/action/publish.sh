@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Publishes the rendered PNG to a branch of the checked-out repository without touching its working tree.
+# Publishes the rendered PNG, and the animated SVG when GC_ANIMATED is set, to a branch of the checked-out
+# repository without touching its working tree. The SVG goes next to the PNG, with .png replaced by .svg.
 # A non-default branch gets a single orphan commit, replaced on each run; the default branch gets a normal
-# commit, only when the image changed. GC_TOKEN (the automatic GITHUB_TOKEN) authenticates the remote commands
+# commit, only when an image changed. GC_TOKEN (the automatic GITHUB_TOKEN) authenticates the remote commands
 # through a per-command extra header; without it the repository's own credentials are used.
 set -euo pipefail
 
 image=${GC_IMAGE:-}
+animated=${GC_ANIMATED:-}
 branch=${GC_BRANCH:-constellation}
 target=${GC_PATH:-constellation.png}
 message=${GC_COMMIT_MESSAGE:-Update Git Constellation image}
@@ -20,6 +22,7 @@ fail() {
 }
 
 [[ -n $image && -s $image ]] || fail "Rendered image not found: ${image:-(not set)}."
+[[ -z $animated || -s $animated ]] || fail "Rendered animation not found: $animated."
 git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 \
     || fail "$repo is not a Git repository. Add an actions/checkout step before this action."
 git -C "$repo" check-ref-format --branch "$branch" >/dev/null 2>&1 || fail "Invalid branch name: $branch"
@@ -27,6 +30,7 @@ case "/$target/" in
     //* | */../* | */./* | *//* | */.git/*) fail "path must be a relative file path inside the repository: $target" ;;
 esac
 [[ $target == *.png ]] || fail "path must end in lowercase .png: $target"
+target_svg=${target%.png}.svg
 [[ -n ${message//[[:space:]]/} ]] || fail "commit-message must not be empty."
 
 export GIT_AUTHOR_NAME='github-actions[bot]'
@@ -65,15 +69,29 @@ if [[ -n $(remote ls-remote origin "$remote_ref") ]]; then
 fi
 
 blob=$(gitr hash-object -w -- "$image")
+svg_blob=
+published=$target
+if [[ -n $animated ]]; then
+    svg_blob=$(gitr hash-object -w -- "$animated")
+    published="$target and $target_svg"
+fi
+
+# Succeeds when the tree already holds the file with this content; an unset blob counts as unchanged.
+same_in() {
+    [[ -z $3 || $(gitr rev-parse -q --verify "$1:$2" || true) == "$3" ]]
+}
 
 if [[ $branch == "$default_branch" ]]; then
     [[ -n $current ]] || fail "Branch $branch does not exist on origin."
-    if [[ $(gitr rev-parse -q --verify "$current:$target" || true) == "$blob" ]]; then
+    if same_in "$current" "$target" "$blob" && same_in "$current" "$target_svg" "$svg_blob"; then
         echo "Image unchanged on $branch; nothing to publish."
         exit 0
     fi
     gitr read-tree "$current"
     gitr update-index --add --cacheinfo "100644,$blob,$target"
+    if [[ -n $svg_blob ]]; then
+        gitr update-index --add --cacheinfo "100644,$svg_blob,$target_svg"
+    fi
     commit=$(gitr commit-tree "$(gitr write-tree)" -p "$current" -m "$message")
     remote push --quiet origin "$commit:$remote_ref"
 else
@@ -85,6 +103,9 @@ else
         | gitr hash-object -w --stdin)
     gitr update-index --add --cacheinfo "100644,$readme,README.md"
     gitr update-index --add --cacheinfo "100644,$blob,$target"
+    if [[ -n $svg_blob ]]; then
+        gitr update-index --add --cacheinfo "100644,$svg_blob,$target_svg"
+    fi
     tree=$(gitr write-tree)
     # Force-pushing replaces the branch, so only a branch this action created may be replaced.
     # cat-file, not rev-list: a shallow fetch hides parents.
@@ -100,4 +121,4 @@ else
     remote push --quiet --force origin "$commit:$remote_ref"
 fi
 
-echo "Published $target to $branch ($commit)."
+echo "Published $published to $branch ($commit)."

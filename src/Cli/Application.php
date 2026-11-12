@@ -62,6 +62,7 @@ Usage:
 
 Relative paths are resolved from the project directory. Absolute paths are supported.
 PHP prepares build/data.json, then invokes the Node renderer.
+Each run also writes an animated SVG next to the image (same name, .svg).
 Run composer install, npm install, npm run build, and npx playwright install chromium first.
 
 HELP);
@@ -91,6 +92,7 @@ HELP);
             }
             (new NodeExporter())->export($this->projectRoot, $input, $output, $secret);
             fwrite(STDOUT, ($options->live ? 'Generated live image: ' : 'Generated demo image: ') . $output . "\n");
+            fwrite(STDOUT, ($options->live ? 'Generated live animation: ' : 'Generated demo animation: ') . NodeExporter::animatedPath($output) . "\n");
 
             return 0;
         } catch (InvalidArgumentException | RuntimeException $exception) {

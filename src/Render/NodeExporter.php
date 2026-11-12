@@ -23,6 +23,11 @@ final class NodeExporter
         );
     }
 
+    public static function animatedPath(string $output): string
+    {
+        return (string) preg_replace('/\.png$/i', '.svg', $output);
+    }
+
     public function export(string $projectRoot, string $input, string $output, #[\SensitiveParameter] ?string $secret = null): void
     {
         $script = $projectRoot . '/build/renderer/export.js';
@@ -65,6 +70,11 @@ final class NodeExporter
         }
         if ($signature !== "\x89PNG\r\n\x1a\n") {
             throw new RuntimeException('Renderer output does not have a valid PNG signature.');
+        }
+        $animated = self::animatedPath($output);
+        clearstatcache(true, $animated);
+        if (!is_file($animated) || filesize($animated) === 0) {
+            throw new RuntimeException('Renderer exited successfully but did not produce the animated SVG.');
         }
     }
 }

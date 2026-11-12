@@ -1,5 +1,5 @@
 name: Git Constellation
-description: Render a GitHub contribution constellation and publish the PNG for a profile README.
+description: Render a GitHub contribution constellation and publish the image (animated SVG and static PNG) for a profile README.
 author: Camiiilotaba
 branding:
   icon: star
@@ -37,10 +37,10 @@ inputs:
     description: Path to a JSON config file in your repository (requires actions/checkout). Non-empty inputs override its keys.
     default: ''
   branch:
-    description: Branch that receives the image. A non-default branch holds a single commit replaced on each run; the default branch gets a commit only when the image changes.
+    description: Branch that receives the image. A non-default branch holds a single commit replaced on each run; the default branch gets a commit only when an image changes.
     default: constellation
   path:
-    description: File name of the image in that branch.
+    description: File name of the PNG in that branch. The animated SVG is published next to it with .svg in place of .png (default constellation.svg).
     default: constellation.png
   commit-message:
     description: Commit message for the published image.
@@ -119,6 +119,7 @@ runs:
       shell: bash
       env:
         GC_IMAGE: ${{ runner.temp }}/git-constellation/constellation.png
+        GC_ANIMATED: ${{ runner.temp }}/git-constellation/constellation.svg
         GC_BRANCH: ${{ inputs.branch }}
         GC_PATH: ${{ inputs.path }}
         GC_COMMIT_MESSAGE: ${{ inputs.commit-message }}

@@ -165,3 +165,27 @@ test('uniform high activity and early peaks stay below profile text', async ({ p
   await assertFlaresAvoidPrivacy();
   await expect(page.locator('main')).toHaveScreenshot('early-peak.png');
 });
+
+test('the exported animated SVG at rest is the plain picture', async ({ page }) => {
+  const directory = resolve('build/visual-preview');
+  await mkdir(directory, { recursive: true });
+  const input = resolve(directory, 'animated.json');
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(input, JSON.stringify(demoData()));
+  await exportImage({ input, output: resolve(directory, 'animated.png'), html: false });
+  const svg = await readFile(resolve(directory, 'animated.svg'), 'utf8');
+  const reducedMotion = '@media (prefers-reduced-motion:reduce)';
+  expect(svg).toContain(reducedMotion);
+  // Chromium does not pass an emulated reduced-motion preference into image documents, so the SVG's own rule is switched on.
+  const still = svg.replace(reducedMotion, '@media all');
+  const jpeg = /<image href="(data:image\/jpeg;base64,[^"]+)"/.exec(svg)![1]!;
+  await page.context().setOffline(true);
+  const show = async (source: string): Promise<Buffer> => {
+    await page.setContent(`<style>html,body{margin:0;background:#020a10}img{display:block}</style><img src="${source}" alt=""/>`);
+    await page.locator('img').evaluate(async node => { await (node as HTMLImageElement).decode(); });
+    return page.locator('img').screenshot();
+  };
+  const base = await show(jpeg);
+  expect((await show(`data:image/svg+xml;base64,${Buffer.from(still).toString('base64')}`)).equals(base)).toBe(true);
+  await expect(page.locator('img')).toHaveScreenshot('animated-at-rest.png');
+});

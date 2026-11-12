@@ -13,9 +13,13 @@ export function escapeText(value: string): string {
 
 export interface RenderAssets { background: string; font: string; stylesheet: string }
 
-export async function loadAssets(): Promise<RenderAssets> {
+export function assetsDirectory(): string {
   const parent = fileURLToPath(new URL('../', import.meta.url));
-  const directory = resolve(parent, basename(parent) === 'build' ? '../assets' : 'assets');
+  return resolve(parent, basename(parent) === 'build' ? '../assets' : 'assets');
+}
+
+export async function loadAssets(): Promise<RenderAssets> {
+  const directory = assetsDirectory();
   const [background, font, stylesheet] = await Promise.all([
     readFile(resolve(directory, 'space.svg')),
     readFile(resolve(directory, 'fonts/Manrope.ttf')),
@@ -36,6 +40,7 @@ const PRIVACY_SENTENCE = {
 } as const;
 const TOKEN_VISIBLE_NOTE = 'Visible to the token; may exclude private activity';
 const coordinate = (value: number): string => value.toFixed(2);
+export const ORBIT_PATH = 'M11 110C-9 136 30 143 82 120S153 53 145 30 104-7 72 13';
 
 function constellation(data: ConstellationData): string {
   const monthly = data.period.granularity === 'month';
@@ -111,10 +116,10 @@ ${assets.stylesheet}
 </style></head><body>
 <main aria-label="${escapeText(profile.name)}: ${demo ? 'simulated ' : ''}GitHub contribution constellation">
 <img class="background" alt="" src="${assets.background}"/>
-<div class="orbit" aria-hidden="true"><svg viewBox="0 0 157 141"><defs><linearGradient id="orbitGradient"><stop stop-color="#1c7a7f" stop-opacity=".1"/><stop offset=".45" stop-color="${data.theme.green}"/><stop offset="1" stop-color="${data.theme.cyan}"/></linearGradient><filter id="orbitGlow"><feGaussianBlur stdDeviation="4"/></filter></defs><path d="M11 110C-9 136 30 143 82 120S153 53 145 30 104-7 72 13" fill="none" stroke="url(#orbitGradient)" stroke-width="1.4"/><path d="M11 110C-9 136 30 143 82 120S153 53 145 30 104-7 72 13" fill="none" stroke="url(#orbitGradient)" stroke-width="4" opacity=".4" filter="url(#orbitGlow)"/><path d="M28 71C43 31 58 11 85 10" fill="none" stroke="#137b85" stroke-width=".6" opacity=".5"/><circle cx="114" cy="13" r="2.5" fill="#bcffff"/><circle cx="84" cy="119" r="2.5" fill="${data.theme.green}"/></svg>${icon('code')}</div>
+<div class="orbit" aria-hidden="true"><svg viewBox="0 0 157 141"><defs><linearGradient id="orbitGradient"><stop stop-color="#1c7a7f" stop-opacity=".1"/><stop offset=".45" stop-color="${data.theme.green}"/><stop offset="1" stop-color="${data.theme.cyan}"/></linearGradient><filter id="orbitGlow"><feGaussianBlur stdDeviation="4"/></filter></defs><path d="${ORBIT_PATH}" fill="none" stroke="url(#orbitGradient)" stroke-width="1.4"/><path d="${ORBIT_PATH}" fill="none" stroke="url(#orbitGradient)" stroke-width="4" opacity=".4" filter="url(#orbitGlow)"/><path d="M28 71C43 31 58 11 85 10" fill="none" stroke="#137b85" stroke-width=".6" opacity=".5"/><circle cx="114" cy="13" r="2.5" fill="#bcffff"/><circle cx="84" cy="119" r="2.5" fill="${data.theme.green}"/></svg>${icon('code')}</div>
 <header class="identity"><h1 data-fit data-min-size="38" title="${escapeText(profile.name)}">${escapeText(profile.name)}</h1><div class="subtitle" data-fit data-min-size="20" title="${escapeText(`${profile.role} · ${profile.stack}`)}"><span class="role">${escapeText(profile.role)}</span> · ${escapeText(profile.stack)}</div></header>
 <div class="brand"><div class="brand-title">DEVELOPER CONSTELLATION</div>${demo ? '<div class="demo">DEMO / SIMULATED DATA</div>' : ''}</div>
-<section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-mark">${icon('contribution')}</div><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon('calendar')}<span>${compactPeriod}</span></div></div></section>
+<section class="contributions" aria-label="${demo ? 'Simulated contributions' : 'GitHub contributions'}"><div class="contribution-copy"><div class="contribution-total" data-fit data-min-size="32"><strong>${number(metrics.totalContributions)}</strong><span>contributions</span></div><div class="privacy" title="${period}">${icon('calendar')}<span>${compactPeriod}</span></div></div></section>
 ${constellation(data)}
 <aside class="languages" aria-label="${manual ? 'Languages selected by the developer' : 'Languages ranked by public repository count'}"><h2>${icon('code')}Top Languages</h2>
 ${languages.length ? `<ol>${languages.map((language, index) => `<li title="${escapeText(manual ? language.name : `${language.name}: ${language.repositories} public repositories`)}"><span class="language-number">${index + 1}.</span><span class="language-dot" style="background:${language.color}"></span><span class="language-name">${escapeText(language.name)}</span></li>`).join('')}</ol>${manual ? '' : '<p class="language-criterion">By public repository count</p>'}` : `<p class="no-languages">No eligible public<br/>repositories${demo ? ' in this example' : ''}.</p>`}</aside>

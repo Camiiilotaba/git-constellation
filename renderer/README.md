@@ -11,12 +11,15 @@ live file without one.
 npm ci
 npx playwright install chromium
 npm run build
-php bin/constellation --demo   # dist/constellation.png
-php bin/constellation --live   # dist/live.png, needs GITHUB_TOKEN; see ../README.md
+php bin/constellation --demo   # dist/constellation.png and .svg
+php bin/constellation --live   # dist/live.png and .svg, needs GITHUB_TOKEN; see ../README.md
 ```
 
 The normal output is a 1920 × 840 PNG (`dist/constellation.png` for demo,
-`dist/live.png` for live) and a self-contained sibling HTML file. The HTML includes the fitted text sizes, local
+`dist/live.png` for live), an animated SVG next to it (`dist/constellation.svg`, `dist/live.svg`) and a
+self-contained sibling HTML file. The animated SVG is the same image as an embedded JPEG with CSS-animated vector
+layers on top; it is written on every run, shows the plain image when nothing animates, and is described in
+`../docs/phase-4.md`. The HTML includes the fitted text sizes, local
 font, stylesheet and SVG background. It can be inspected offline.
 
 The renderer can also be called directly after PHP prepares the JSON:
@@ -27,7 +30,7 @@ node build/renderer/export.js --input build/data.json --output dist/constellatio
 
 Add `--no-html` to suppress the inspection HTML. PNG output is written through a
 temporary file and renamed after successful rendering. Chromium closes on both
-success and failure. Output does not contain source JSON or environment values.
+success and failure. The exporter prints `Rendered <path>.png` and then `Rendered <path>.svg`. Output does not contain source JSON or environment values.
 
 ## Contract v3 and mode-dependent copy
 
@@ -71,7 +74,8 @@ The language panel is rendered in the order of `languages` (PHP decides the orde
 - `ornaments.ts`: isolated peak accents and bounded decorative branches, separate from measured coordinates.
 - `template.ts`: escaped HTML/SVG composition and bundled asset loading.
 - `icons.ts`: original small outline SVG icons.
-- `export.ts`: argument handling, offline Chromium, font loading and PNG export.
+- `animation.ts`: the animated SVG built from the page scene.
+- `export.ts`: argument handling, offline Chromium, font loading, PNG and SVG export.
 - `../assets/constellation.css`: readable static composition styles.
 - `../assets/space.svg`: original provisional artwork without text or metrics.
 
