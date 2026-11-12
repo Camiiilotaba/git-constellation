@@ -28,5 +28,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # The export test renders through Chromium.
+      - run: npx playwright install --with-deps chromium
       # Visual snapshots are macOS-only, so npm run test:visual is not run here.
       - run: npm test
