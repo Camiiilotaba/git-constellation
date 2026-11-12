@@ -1,0 +1,127 @@
+name: Git Constellation
+description: Render a GitHub contribution constellation and publish the image (animated SVG and static PNG) for a profile README.
+author: Camiiilotaba
+branding:
+  icon: star
+  color: blue
+
+inputs:
+  token:
+    description: Token used only to read statistics. The default GITHUB_TOKEN gives public statistics; a classic PAT with only read:user adds private counts.
+    default: ${{ github.token }}
+  username:
+    description: GitHub login to render. Defaults to the repository owner.
+    default: ''
+  name:
+    description: Name shown on the image.
+    default: ''
+  role:
+    description: Role shown on the image.
+    default: ''
+  stack:
+    description: Stack shown on the image.
+    default: ''
+  period:
+    description: all-time (default) or last-year.
+    default: ''
+  languages:
+    description: 'JSON list of 1 to 5 languages to show instead of the ranking, e.g. ["PHP", {"name": "TypeScript", "color": "#3178c6"}].'
+    default: ''
+  exclude-languages:
+    description: JSON list of language names that replaces the default exclusion list.
+    default: ''
+  colors:
+    description: 'JSON object with optional cyan and green colors, e.g. {"cyan": "#30e8ef"}.'
+    default: ''
+  config:
+    description: Path to a JSON config file in your repository (requires actions/checkout). Non-empty inputs override its keys.
+    default: ''
+  branch:
+    description: Branch that receives the image. A non-default branch holds a single commit replaced on each run; the default branch gets a commit only when an image changes.
+    default: constellation
+  path:
+    description: File name of the PNG in that branch. The animated SVG is published next to it with .svg in place of .png (default constellation.svg).
+    default: constellation.png
+  commit-message:
+    description: Commit message for the published image.
+    default: Update Git Constellation image
+
+runs:
+  using: composite
+  steps:
+    - name: Check runtimes
+      id: runtimes
+      shell: bash
+      env:
+        GC_STATS_TOKEN: ${{ inputs.token }}
+      run: |
+        if [[ -z $GC_STATS_TOKEN ]]; then
+          echo "::error::The token input is empty. If it references a secret such as CONSTELLATION_TOKEN, create that repository secret or remove the token line."
+          exit 1
+        fi
+        if ! php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' 2>/dev/null; then
+          echo "::error::Git Constellation needs PHP 8.3 or later on the runner. Use runs-on: ubuntu-24.04."
+          exit 1
+        fi
+        if ! command -v composer >/dev/null; then
+          echo "::error::Git Constellation needs Composer on the runner. Use runs-on: ubuntu-24.04."
+          exit 1
+        fi
+        node_ok=false
+        if command -v node >/dev/null \
+          && node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major >= 24 || (major === 22 && minor >= 12) ? 0 : 1)'; then
+          node_ok=true
+        fi
+        echo "node-ok=$node_ok" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Node.js
+      if: steps.runtimes.outputs.node-ok != 'true'
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 24
+
+    - name: Install PHP dependencies
+      shell: bash
+      run: cd "$GITHUB_ACTION_PATH" && composer install --no-dev --no-interaction --prefer-dist --no-progress
+
+    - name: Prepare configuration
+      shell: bash
+      env:
+        GC_USERNAME: ${{ inputs.username }}
+        GC_NAME: ${{ inputs.name }}
+        GC_ROLE: ${{ inputs.role }}
+        GC_STACK: ${{ inputs.stack }}
+        GC_PERIOD: ${{ inputs.period }}
+        GC_LANGUAGES: ${{ inputs.languages }}
+        GC_EXCLUDE_LANGUAGES: ${{ inputs.exclude-languages }}
+        GC_COLORS: ${{ inputs.colors }}
+        GC_CONFIG: ${{ inputs.config }}
+      run: php "$GITHUB_ACTION_PATH/scripts/action/config.php" "$RUNNER_TEMP/git-constellation/config.json"
+
+    - name: Install renderer
+      shell: bash
+      run: |
+        cd "$GITHUB_ACTION_PATH"
+        npm ci --no-audit --no-fund
+        npx playwright install --with-deps chromium
+        npm run build
+
+    - name: Render live image
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: >-
+        php "$GITHUB_ACTION_PATH/bin/constellation" --live
+        --config "$RUNNER_TEMP/git-constellation/config.json"
+        --output "$RUNNER_TEMP/git-constellation/constellation.png"
+
+    - name: Publish image
+      shell: bash
+      env:
+        GC_IMAGE: ${{ runner.temp }}/git-constellation/constellation.png
+        GC_ANIMATED: ${{ runner.temp }}/git-constellation/constellation.svg
+        GC_BRANCH: ${{ inputs.branch }}
+        GC_PATH: ${{ inputs.path }}
+        GC_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        GC_TOKEN: ${{ github.token }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/action/publish.sh"

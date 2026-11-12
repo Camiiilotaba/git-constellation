@@ -1,13 +1,16 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-09 (Phase 2 closed)
+Last updated: 2026-11-12 (Phases 3 and 4 verified with real runs; release pending)
 
 ## Current state
 
-- Local repository: `/Users/eduardcherkashyn/develop/git-constellation`. No remote, nothing pushed.
+- Local repository: `/Users/eduardcherkashyn/develop/git-constellation`; public at https://github.com/Camiiilotaba/git-constellation. `develop` is pushed; `main` is still at the Phase 2 merge (5ba031b). No tags exist yet. CI (`.github/workflows/ci.yml`) installs Chromium for the export test and is green on `develop`.
 - Branching model (owner, 2026-11-09): `main` holds released states only; `develop` is the integration branch; work happens on `feature/*` branches merged into `develop` with `--no-ff`; `develop` is merged into `main` with `--no-ff` when a phase is approved.
 - Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
-- Phase 3 (GitHub Actions Quick Start) is next, on `feature/phase-3-actions` from `develop`.
+- Phase 3 (GitHub Actions Quick Start) is merged into `develop` and verified with real runs in `Camiiilotaba/Camiiilotaba` (first run 2026-11-09): checkout with `persist-credentials: false`, render, publish to the orphan `constellation` branch; scheduled runs every 6 hours succeeded 2026-11-10 to 2026-11-12, about 45 seconds each. The profile workflow references `@develop` until the release. Design and checklist: `docs/phase-3.md`.
+- Spike answers: with the automatic `GITHUB_TOKEN`, `viewer { login }` resolves and the token is not treated as the owner's account; `contributionsCollection` and the repositories query are readable; no `X-OAuth-Scopes`; private contributions `included` through the restricted count (1401, 2026-11-09); PRs and reviews count public activity only; calendar total 1495. With the classic `read:user` token stored as `CONSTELLATION_TOKEN` (used now): PRs and reviews include private activity (255 and 285, total 1534 on 2026-11-12); on 2026-11-09 the total was 1448 versus 1495 with the automatic token. The pinned SHAs, the per-command extra-header push (including creating the branch) and `ls-remote --symref` work. raw.githubusercontent.com caches a 404 for a few minutes if the image is requested before the branch exists.
+- Still open: whether bot pushes to the non-default `constellation` branch count as activity for GitHub's 60-day scheduled-workflow rule.
+- Phase 4 (animated SVG) is merged into `develop` and verified on GitHub (2026-11-12): the workflow published `constellation.svg` (331,975 bytes) next to the PNG, served as `image/svg+xml` with the restrictive CSP; the profile README links it and it animates in Chromium, Firefox and WebKit. The README hero image links the SVG. Not verified: whether a real OS reduced-motion setting reaches an SVG shown through `<img>` (an emulated one does not in Chromium); the at-rest invisibility is the guarantee. Layout change in the static image too: the second `</>` mark was removed. Details: `docs/phase-4.md`.
 - Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
 - Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
@@ -17,7 +20,7 @@ Git Constellation is an open-source CLI that renders a panoramic GitHub activity
 
 The approved visual direction must not change. Phase 2 applied only the four adjustments the owner approved: no `ACTIVITY • CODE • CONTRIBUTIONS` line, no secondary captions under the metric cards, the DEMO badge only in demo mode, and a three-state privacy subtitle.
 
-Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
+Phase 3 shape (implemented as a composite action `action.yml`, not a reusable workflow; referenced as `@v1` major tags, `@latest`, or exact `@vX.Y.Z`): a Quick Start via a reusable GitHub Actions workflow (no PHP/Node install, no clone, automatic `GITHUB_TOKEN` when sufficient, personal token via Secrets otherwise) and the current Advanced Setup (local run with `.env`). The Phase 2 design keeps the token in an environment variable and the configuration in a JSON file so both can be driven from Actions later.
 
 - Phase 3 decisions already taken by the owner (2026-11-09): scheduled workflow every 6 hours (configurable) plus a manual "Run workflow" button; the image is stored on a separate branch (e.g. `constellation`) whose single commit is replaced on each run, so `main` gets no bot commits; the profile README links the image from that branch; storing on `main` (one commit per change) may be offered as an option.
 
@@ -37,10 +40,10 @@ Future shape (Phase 3, not started; workflow referenced as `@v1` major tags, `@l
 
 ```sh
 composer install && npm ci && npx playwright install chromium && npm run build
-composer run demo                              # demo image → dist/constellation.png
+composer run demo                              # demo image → dist/constellation.png and dist/constellation.svg
 cp config/live.example.json config/local.json  # edit username/name/role/stack
 cp .env.example .env                           # set GITHUB_TOKEN
-php bin/constellation --live                   # live image → dist/live.png + verification summary
+php bin/constellation --live                   # live image → dist/live.png and dist/live.svg + verification summary
 composer test                                  # PHPUnit (integration test skipped without env)
 npm test                                       # build + Vitest
 npm run test:visual                            # Playwright (snapshots are macOS-only)
@@ -49,19 +52,20 @@ node build/renderer/review.js                  # comparison gallery in build/rev
 
 Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN=<login> ./vendor/bin/phpunit --group integration`.
 
-## Verification (2026-11-09)
+## Verification (2026-11-12)
 
-- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- Local: Vitest 97, action checks 47, PHPUnit 225 (1 skipped: integration), Playwright 12. CI is green on `develop`.
+- Real runs: Phase 2 API run (2026-11-09) all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account). Phase 3 and 4 runs on the profile workflow as described under Current state.
 - Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
 ## Review artifacts
 
-- Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored, not generated yet).
+- Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored).
 - Visual baselines: `tests/visual/constellation.spec.ts-snapshots/`.
 - Comparison gallery and reference: `build/review/` (ignored; keep `build/review/reference.png` safe, it is the owner's reference and `build/` is ephemeral).
-- Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`.
+- Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`, `docs/phase-3.md`, `docs/phase-4.md`.
 
 ## How to resume in a new session
 
 1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline --graph -15`.
-2. Continue Phase 3 on `feature/phase-3-actions` (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.
+2. Next step: the release. Merge `develop` into `main` with `--no-ff`, then create the tags `v1.0.0`, `v1` and `latest` per `docs/releasing.md`, and switch the profile workflow in `Camiiilotaba/Camiiilotaba` from `@develop` to `@v1`. Ask before any push, tag, publish, or change to `Camiiilotaba/Camiiilotaba`.
