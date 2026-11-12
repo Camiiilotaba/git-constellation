@@ -17,6 +17,12 @@ final class NodeExporterTest extends TestCase
         (new NodeExporter())->export(sys_get_temp_dir() . '/constellation-no-renderer-' . bin2hex(random_bytes(8)), 'input.json', 'output.png');
     }
 
+    public function testAnimatedPathReplacesOnlyTheTrailingPngExtension(): void
+    {
+        self::assertSame('/tmp/a.png.dir/live.svg', NodeExporter::animatedPath('/tmp/a.png.dir/live.png'));
+        self::assertSame('dist/x.svg', NodeExporter::animatedPath('dist/x.PNG'));
+    }
+
     public function testChildEnvironmentStripsVariablesHoldingTheSecretValue(): void
     {
         $environment = ['PATH' => '/usr/bin', 'GH_PAT' => 'tok_x'];
