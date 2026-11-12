@@ -115,7 +115,8 @@ export function renderAnimatedSvg(scene: AnimationScene, sky: Sky, baseJpeg: Buf
   shoot('s2', [1500, 120], [1270, 218], 19);
   shoot('s3', [760, 236], [560, 321], 23);
 
-  const line = scene.line.trim() ? `<g fill="none" stroke-linecap="round" stroke-dasharray="3 300"><path class="run" d="${escapeText(scene.line)}" pathLength="100" stroke="#b8fff4" stroke-width="7" stroke-opacity=".22"/><path class="run" d="${escapeText(scene.line)}" pathLength="100" stroke="#f4fffd" stroke-width="2.4"/></g>` : '';
+  const hasSegment = /^\s*M[^A-Za-z]*[A-Za-z]/.test(scene.line);
+  const line = hasSegment ? `<g fill="none" stroke-linecap="round" stroke-dasharray="3 300"><path class="run" d="${escapeText(scene.line)}" pathLength="100" stroke="#b8fff4" stroke-width="7" stroke-opacity=".22"/><path class="run" d="${escapeText(scene.line)}" pathLength="100" stroke="#f4fffd" stroke-width="2.4"/></g>` : '';
   const layers = [
     twinkles,
     line,

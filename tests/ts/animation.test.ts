@@ -127,6 +127,11 @@ describe('animated SVG', () => {
     if (input.stars.every(star => star.count === 0)) expect(output).not.toMatch(/class="(ripple|pulse)"/);
   });
 
+  it('runs the light along the line only when the line has a segment', () => {
+    expect(renderAnimatedSvg(scene(single), sky, jpeg)).not.toContain('class="run"');
+    expect(svg).toContain('class="run"');
+  });
+
   it('counts the monthly view as 37 stars and the weekly view as 53', () => {
     expect(scene(monthlyPoints(allTimeData().days)).stars).toHaveLength(37);
     expect(weekly().stars).toHaveLength(53);
