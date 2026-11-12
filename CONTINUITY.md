@@ -1,6 +1,6 @@
 # Continuity — Git Constellation
 
-Last updated: 2026-11-09 (Phase 3 implemented locally)
+Last updated: 2026-11-12 (Phase 4, animated SVG, implemented on `feature/animated-svg`)
 
 ## Current state
 
@@ -9,6 +9,7 @@ Last updated: 2026-11-09 (Phase 3 implemented locally)
 - Phase 1 and Phase 2 are approved by the owner and merged (`phase-2-github-integration` → `develop` → `main`).
 - Phase 3 (GitHub Actions Quick Start) is implemented locally on `feature/phase-3-actions` and independently reviewed (fixes applied). It is pending a real-run spike, which needs the owner's explicit confirmation to publish this repository, create the first tags (`v1.0.0`, `v1`, `latest`; see `docs/releasing.md`) and add the workflow to `Camiiilotaba/Camiiilotaba`. Design and checklist: `docs/phase-3.md`.
 - Open questions for the spike: does `viewer { login }` return a bot login with the Actions `GITHUB_TOKEN` (null or an error fails the run); can that token read `contributionsCollection` and the repositories query, and does it send no `X-OAuth-Scopes`; are the pinned SHAs right (`actions/checkout` v4.2.2 `11bd7190…`, `actions/setup-node` v4.4.0 `49933ea5…`); which Node ubuntu-24.04 ships and how long a run takes; does the per-command extra-header push work with `persist-credentials: false` on a shallow checkout, including creating the branch; does `ls-remote --symref` resolve the default branch; do bot pushes to the non-default `constellation` branch count as activity for GitHub's 60-day scheduled-workflow rule.
+- Phase 4 (animated SVG) is implemented on `feature/animated-svg`, pending a real run on the profile: every run writes `<output>.svg` next to the PNG, and the action publishes both (`GC_ANIMATED` in `scripts/action/publish.sh`). The Quick Start README snippet uses `constellation.svg`; the hero image keeps the PNG URL until the animated file is confirmed on GitHub (raw.githubusercontent.com's CSP was only reproduced locally). Layout change in the static image too: the second `</>` mark beside the contribution count was removed and the contribution line aligns with the name. Design, measurements and open points: `docs/phase-4.md`.
 - Known, accepted limitation: the API total is a few percent below the profile's figure (activity in private organization repositories the API does not return). Documented in `docs/phase-2.md`; the image shows the API figure, never estimates or profile scraping.
 - Working method fixed by the owner: implementation delegated to Opus/Sonnet/Haiku subagents, each change reviewed by an independent subagent, the main agent reviews the whole; everything in the repository in English; minimal comments; no unnecessary abstractions; local commits authorized; push, publishing, tags and anything touching `Camiiilotaba/Camiiilotaba` need explicit confirmation right before.
 
@@ -38,10 +39,10 @@ Phase 3 shape (implemented as a composite action `action.yml`, not a reusable wo
 
 ```sh
 composer install && npm ci && npx playwright install chromium && npm run build
-composer run demo                              # demo image → dist/constellation.png
+composer run demo                              # demo image → dist/constellation.png and dist/constellation.svg
 cp config/live.example.json config/local.json  # edit username/name/role/stack
 cp .env.example .env                           # set GITHUB_TOKEN
-php bin/constellation --live                   # live image → dist/live.png + verification summary
+php bin/constellation --live                   # live image → dist/live.png and dist/live.svg + verification summary
 composer test                                  # PHPUnit (integration test skipped without env)
 npm test                                       # build + Vitest
 npm run test:visual                            # Playwright (snapshots are macOS-only)
@@ -52,7 +53,7 @@ Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN
 
 ## Verification (2026-11-09)
 
-- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
+- PHPUnit 218 tests (1 skipped: integration), Vitest 81, Playwright 11 (macOS baselines refreshed for the new figure). Phase 4 (2026-11-12): PHPUnit 224 (1 skipped), Vitest 96, action tests 43 checks, Playwright 12. Real API run: all-time since 2023-10-23, 1448 contributions, 250 PRs, 274 reviews, 264 active days, streak 10, private `included` (own account).
 - Independent reviews of every change; parked minors are listed in `.superpowers/sdd/*/` ledgers (gitignored).
 
 ## Review artifacts
@@ -60,9 +61,9 @@ Integration test against the real API: `GITHUB_TOKEN=… GIT_CONSTELLATION_LOGIN
 - Demo image: `dist/constellation.png` (tracked). Live image: `dist/live.png` (ignored, not generated yet).
 - Visual baselines: `tests/visual/constellation.spec.ts-snapshots/`.
 - Comparison gallery and reference: `build/review/` (ignored; keep `build/review/reference.png` safe, it is the owner's reference and `build/` is ephemeral).
-- Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`.
+- Design and plan: `docs/superpowers/specs/2026-11-06-phase2-github-integration-design.md`, `docs/superpowers/plans/2026-11-06-phase2-github-integration.md`. Phase docs: `docs/phase-1.md`, `docs/phase-2.md`, `docs/phase-3.md`, `docs/phase-4.md`.
 
 ## How to resume in a new session
 
 1. Read this file, `README.md`, `docs/phase-2.md`; check `git status --short --branch` and `git log --oneline --graph -15`.
-2. Continue Phase 3 on `feature/phase-3-actions` (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.
+2. Continue Phase 4 on `feature/animated-svg`, then the Phase 3 spike (decisions under "Product and agreed limits"). Ask before any push, publish, tag, or change to `Camiiilotaba/Camiiilotaba`.

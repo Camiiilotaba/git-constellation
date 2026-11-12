@@ -14,7 +14,7 @@ Any GitHub user shows a live, auto-updating constellation in their profile READM
   3. `scripts/action/config.php` writes `$RUNNER_TEMP/git-constellation/config.json` from the inputs (`GitConstellation\Config\ActionInputs`): the optional `config` file from the caller's checkout is the base, non-empty inputs override its keys, `username` falls back to the repository owner, `output` is dropped. The result is validated with `Configuration` before the slow steps.
   4. `npm ci`, `npx playwright install --with-deps chromium`, `npm run build`.
   5. `php bin/constellation --live --config <tmp>/config.json --output <tmp>/constellation.png`. The stats token is set only in this step's `env: GITHUB_TOKEN`.
-  6. `scripts/action/publish.sh` publishes the PNG.
+  6. `scripts/action/publish.sh` publishes the PNG and the animated SVG (`GC_ANIMATED`, see [phase-4.md](phase-4.md)) next to each other.
 - Inputs are passed to scripts through `env`, never interpolated into `run:` scripts, so input text cannot inject shell code.
 - No caching in this phase: it would add steps and keys to maintain, and a run every 6 hours does not need it.
 
@@ -31,11 +31,11 @@ Any GitHub user shows a live, auto-updating constellation in their profile READM
 
 The script works with Git plumbing in the checked-out repository (a temporary index, `hash-object`, `commit-tree`), so the working tree is never touched. The default branch is read from `origin` (`ls-remote --symref`).
 
-- **Image branch** (default `constellation`, any branch other than the default): a single orphan commit holding only the PNG and a short `README.md`, force-pushed on each run. When the remote commit already has the same tree, nothing is pushed. If the branch exists but its tip is not a parentless commit whose `README.md` carries the generated marker, the script fails instead of overwriting a branch it did not create.
-- **Default branch** (opt-in, `branch:` set to it): a normal commit on top of the remote tip, only when the PNG changed; never forced.
+- **Image branch** (default `constellation`, any branch other than the default): a single orphan commit holding only the PNG, the animated SVG and a short `README.md`, force-pushed on each run. When the remote commit already has the same tree, nothing is pushed. If the branch exists but its tip is not a parentless commit whose `README.md` carries the generated marker, the script fails instead of overwriting a branch it did not create.
+- **Default branch** (opt-in, `branch:` set to it): a normal commit on top of the remote tip, only when the PNG or the SVG changed; never forced.
 - Author and committer: `github-actions[bot] <41898099+github-actions[bot]@users.noreply.github.com>`.
-- `path` must be a relative `.png` path without `..`, `.` or `.git` segments.
-- Only the PNG is published: never `data.json`, configs or logs. A failure in any earlier step stops the job before publishing, so the previous image stays.
+- `path` must be a relative `.png` path (the SVG takes the same path with `.svg`) without `..`, `.` or `.git` segments.
+- Only the PNG and the SVG are published: never `data.json`, configs or logs. A failure in any earlier step stops the job before publishing, so the previous image stays.
 
 `tests/action/publish.test.sh` (run by `npm test`) checks both modes against a temporary bare repository: the orphan branch keeps exactly one commit and replaces it, unchanged images are no-ops, the default branch gets one commit per change and keeps its files, bad paths and a missing image fail, existing foreign branches (a normal branch and a foreign orphan) are refused and left untouched, a token passed in `GC_TOKEN` never appears in the output or git config, and the working tree stays clean.
 
@@ -53,7 +53,7 @@ Do this in a profile repository after the first release tag exists (see [releasi
 
 1. Copy `examples/profile-workflow.yml`, set `name`, `role`, `stack`, and run it with **Run workflow**.
 2. Check the job log: runtime versions accepted (or Node set up), the summary shows the right login and period, `Token scopes: (not reported)`, and no repository names or token text anywhere.
-3. Check that the `constellation` branch exists with exactly one commit by `github-actions[bot]`, containing only `constellation.png` and `README.md`, and that the default branch has no new commits.
+3. Check that the `constellation` branch exists with exactly one commit by `github-actions[bot]`, containing only `constellation.png`, `constellation.svg` and `README.md`, and that the default branch has no new commits.
 4. Run it again: the branch still has one commit (replaced, or unchanged when the image is identical).
 5. Add the `<img>` line to the README and check the image renders on the profile page.
 6. Add `CONSTELLATION_TOKEN` (classic, `read:user` only) and the `token:` line; run again and check the summary shows `Token scopes: read:user`, `own account: yes`, `Private contributions: included`.

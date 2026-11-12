@@ -15,8 +15,10 @@ It runs in your profile repository (`<login>/<login>`).
 3. **Add the image to your README:**
 
    ```html
-   <img src="https://raw.githubusercontent.com/<login>/<login>/constellation/constellation.png" width="100%" alt="GitHub contribution constellation for <login>">
+   <img src="https://raw.githubusercontent.com/<login>/<login>/constellation/constellation.svg" width="100%" alt="GitHub contribution constellation for <login>">
    ```
+
+   The animated SVG is about 300 KB. Use `constellation.png` in the same place for a static image. The SVG contains a `prefers-reduced-motion` rule that turns the animation off, and it is built so that a viewer that does not animate it shows the plain image. See [docs/phase-4.md](docs/phase-4.md).
 
 The runner must provide PHP 8.3 or later and Composer; the example uses `ubuntu-24.04`. Node.js is set up automatically when the runner's version is too old.
 
@@ -37,7 +39,7 @@ Set these under `with:` in the workflow. All inputs are optional.
 | `colors` | empty | JSON object with optional `cyan` and `green` colors, for example `{"cyan": "#30e8ef"}`. |
 | `config` | empty | Path to a JSON config file in your repository (requires `actions/checkout`). Non-empty inputs override its keys. |
 | `branch` | `constellation` | Branch that receives the image. |
-| `path` | `constellation.png` | File name of the image in that branch. |
+| `path` | `constellation.png` | File name of the PNG in that branch. The animated SVG is published next to it, with `.svg` in place of `.png`. |
 | `commit-message` | `Update Git Constellation image` | Commit message for the published image. |
 
 The inputs match the configuration keys described under [Advanced Setup (local)](#advanced-setup-local). See [docs/phase-3.md](docs/phase-3.md) for the design.
@@ -133,7 +135,7 @@ php bin/constellation --demo
 
 The CLI uses `config/demo.json` and `fixtures/demo.json` by default. It prepares `build/data.json` and calls `node build/renderer/export.js --input build/data.json --output <png>` to produce `dist/constellation.png`. Override paths with `--config=...`, `--fixture=...` and `--output=...`; relative paths resolve from the project root. `php bin/constellation --help` prints usage. `composer run demo` runs the default command.
 
-Demo data has a fixed period so the image is reproducible. It needs no token and no access to GitHub. Each run writes `dist/constellation.png` and, by default, `dist/constellation.html`. When calling the Node exporter directly you can add `--no-html` to skip the HTML file; the PHP command always uses the default output.
+Demo data has a fixed period so the image is reproducible. It needs no token and no access to GitHub. Each run writes `dist/constellation.png`, its animated version `dist/constellation.svg` and, by default, `dist/constellation.html`. When calling the Node exporter directly you can add `--no-html` to skip the HTML file; the PHP command always uses the default output.
 
 The demo image below uses simulated data (the fictional developer "Alex Morgan") and is 1920 x 840 pixels:
 
@@ -184,7 +186,7 @@ Live mode fetches real statistics for one GitHub user and renders them with the 
    php bin/constellation --live
    ```
 
-   Use `--config=...` and `--output=...` to override the defaults. The image is written to `dist/live.png`; `dist/constellation.png` remains the demo image. To embed a locally generated PNG, commit it to a public repository and link its raw URL; the [Quick Start](#quick-start-github-actions) does this automatically.
+   Use `--config=...` and `--output=...` to override the defaults. The image is written to `dist/live.png`, with the animated version in `dist/live.svg`; `dist/constellation.png` and `dist/constellation.svg` remain the demo files. To embed a locally generated PNG, commit it to a public repository and link its raw URL; the [Quick Start](#quick-start-github-actions) does this automatically.
 
 ### Reading the summary
 
