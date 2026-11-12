@@ -150,32 +150,14 @@ main:after {
 
 .contributions {
   position:absolute;
-  left:83px;
+  left:235px;
   top:169px;
   display:flex;
   align-items:center;
   gap:32px;
 }
 
-.contribution-mark {
-  height:77px;
-  width:77px;
-  display:grid;
-  place-items:center;
-  background:linear-gradient(145deg,var(--green),var(--cyan));
-  border-radius:50%;
-  box-shadow:0 0 42px #24d8b523;
-}
-
-.contribution-mark .icon {
-  width:49px;
-  height:49px;
-  color:#02171d;
-}
-
 .contribution-copy {
-  border-left:1px solid #a2b8c0;
-  padding-left:30px;
   min-height:89px;
   display:flex;
   flex-direction:column;
