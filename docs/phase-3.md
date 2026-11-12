@@ -41,13 +41,15 @@ The script works with Git plumbing in the checked-out repository (a temporary in
 
 ## CI for this repository
 
-`.github/workflows/ci.yml` runs on pushes and pull requests to `main` and `develop`: `composer validate --strict`, `composer test`, and `npm test` (build, Vitest, publishing test) on ubuntu-24.04. Visual snapshots are macOS-only and are not run in CI.
+`.github/workflows/ci.yml` runs on pushes and pull requests to `main` and `develop`: `composer validate --strict`, `composer test`, and `npm test` (build, Vitest, publishing test) on ubuntu-24.04. It installs Chromium, because the export test renders through it. Visual snapshots are macOS-only and are not run in CI.
 
 ## Scheduled workflows and inactivity
 
-GitHub disables scheduled workflows in public repositories after 60 days without repository activity. The user re-enables the workflow in the Actions tab (**Enable workflow**). Default-branch mode avoids it, since a changed image is a commit on the default branch. Whether bot force-pushes to the non-default `constellation` branch count as activity is not documented; the first real runs must tell.
+GitHub disables scheduled workflows in public repositories after 60 days without repository activity. The user re-enables the workflow in the Actions tab (**Enable workflow**). Default-branch mode avoids it, since a changed image is a commit on the default branch. Whether bot force-pushes to the non-default `constellation` branch count as activity is not documented; the first real runs have not answered it yet (still open).
 
 ## Verification checklist for the first real run
+
+Outcome (profile repository `Camiiilotaba/Camiiilotaba`, first run 2026-11-09): the action works end to end, and scheduled runs every 6 hours succeeded from 2026-11-10 to 2026-11-12, each taking about 45 seconds. The pinned SHAs, the per-command extra-header push (including creating the branch) and `ls-remote --symref` work as designed. Only item 12 is still open. With the automatic `GITHUB_TOKEN`, `viewer { login }` resolves, `contributionsCollection` and the repositories query are readable, no `X-OAuth-Scopes` header is sent, private contributions are `included` through the restricted count, and Pull Requests and Code Reviews count public activity only. With the classic `read:user` token they include private activity. The two tokens report slightly different calendar totals (1495 with the automatic token, 1448 with the classic one on 2026-11-09). raw.githubusercontent.com caches a 404 for a few minutes when the image URL is requested before the branch exists.
 
 Do this in a profile repository after the first release tag exists (see [releasing.md](releasing.md)).
 
