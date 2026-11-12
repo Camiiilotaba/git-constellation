@@ -106,6 +106,14 @@ check 'default-branch mode skips when both files are unchanged' "$(remote_git re
 run_animated "$tmp/one.png" "$tmp/two.svg" main images/constellation.png
 check 'default-branch mode commits an SVG-only change' "$(remote_git rev-list --count main)" 5
 
+run_animated "$tmp/two.png" "$tmp/one.svg" main images/constellation.png
+check 'default-branch mode commits a PNG-only change' "$(remote_git rev-list --count main)" 6
+check 'default-branch mode holds the new PNG after a PNG-only change' "$(remote_git show main:images/constellation.png)" 'second image'
+check 'default-branch mode keeps the unchanged SVG after a PNG-only change' "$(remote_git show main:images/constellation.svg)" '<svg>first</svg>'
+
+run "$tmp/two.png" constellation
+check 'a later run without GC_ANIMATED drops the stale SVG from the orphan branch' "$(remote_git ls-tree --name-only constellation | tr '\n' ' ')" 'README.md constellation.png '
+
 before_missing=$(remote_git rev-parse constellation)
 if missing_error=$(GC_REPO=$tmp/work GC_IMAGE=$tmp/one.png GC_ANIMATED=$tmp/missing.svg bash "$publish" 2>&1 >/dev/null); then
     check 'fails when the animation is missing' published failed
